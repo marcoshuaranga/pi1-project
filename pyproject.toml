@@ -1,0 +1,50 @@
+[project]
+name = "pi1-rag-kedb"
+version = "0.1.0"
+description = "Plataforma multi-agente RAG + KEDB — Mesa de Ayuda OITSI-MTC"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "openai>=1.55.0",
+    "chromadb==0.5.23",
+    "langgraph>=0.2.60",
+    "langchain-openai>=0.2.10",
+    "spacy>=3.8.0",
+    "pandas>=2.2.0",
+    "pyarrow>=18.0.0",
+    "openpyxl>=3.1.0",
+    "hdbscan>=0.8.38",
+    "scikit-learn>=1.5.0",
+    "numpy>=1.26.0",
+    "httpx>=0.28.0",
+    "python-multipart>=0.0.17",
+    "websockets>=14.0",
+    "aiosqlite>=0.20.0",
+    "fastembed>=0.4.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

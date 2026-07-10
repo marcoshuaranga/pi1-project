@@ -1,0 +1,6 @@
+# DVC configuration — track processed data, not raw PII
+[core]
+    remote = localstorage
+
+['remote "localstorage"']
+    url = ../dvc-storage

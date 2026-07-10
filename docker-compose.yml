@@ -1,0 +1,75 @@
+services:
+  chromadb:
+    image: ghcr.io/chroma-core/chroma:0.5.23
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - DATA_PROCESSED_PATH=/data/processed
+      - KEDB_DB_PATH=/data/kedb/kedb.db
+      - KEDB_DOCS_PATH=/data/kedb/articles
+    volumes:
+      - ./data/processed:/data/processed
+      - ./data/raw:/data/raw
+      - kedb_data:/data/kedb
+      - ./data/kedb/articles:/data/kedb/articles
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  web:
+    build:
+      context: ./web
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  pipeline:
+    build: .
+    env_file:
+      - .env
+    environment:
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - DATA_PROCESSED_PATH=/data/processed
+      - KEDB_DB_PATH=/data/kedb/kedb.db
+      - KEDB_DOCS_PATH=/data/kedb/articles
+    volumes:
+      - ./data/processed:/data/processed
+      - ./data/raw:/data/raw
+      - kedb_data:/data/kedb
+      - ./data/kedb/articles:/data/kedb/articles
+    depends_on:
+      chromadb:
+        condition: service_healthy
+    entrypoint: ["python", "-m", "app.pipeline.cli"]
+    profiles:
+      - pipeline
+
+volumes:
+  chroma_data:
+  kedb_data:

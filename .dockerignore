@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+.venv
+venv
+.git
+.github
+data/raw/*
+chroma_data
+kedb_data
+web/node_modules
+web/dist
+*.md
+!README.md
+.cursor
+.dvc
