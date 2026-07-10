@@ -3,11 +3,16 @@
 import json
 import time
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from pathlib import Path
 
 from openai import OpenAI, RateLimitError
 
 from app.config import Settings, get_settings
+
+# Do not load multi-GB pipeline caches into the API process.
+_MAX_CACHE_LOAD_BYTES = 32 * 1024 * 1024  # 32 MB
+_MAX_MEMORY_ENTRIES = 2048
 
 
 class EmbeddingBackend(ABC):
@@ -88,28 +93,53 @@ def get_embedding_backend(settings: Settings | None = None) -> EmbeddingBackend:
 
 
 class EmbeddingService:
-    def __init__(self, settings: Settings | None = None):
+    """Online embeddings with a small in-memory LRU. Does NOT load pipeline JSON caches."""
+
+    def __init__(self, settings: Settings | None = None, load_disk_cache: bool = False):
         self.settings = settings or get_settings()
         self.backend = get_embedding_backend(self.settings)
         self.cache_path = Path(self.settings.data_processed_path) / "embedding_cache.json"
         self._cache: dict[str, list[float]] = {}
-        self._load_cache()
+        self._load_disk_cache = load_disk_cache
+        if load_disk_cache:
+            self._load_cache()
 
     def _load_cache(self) -> None:
-        if self.cache_path.exists():
-            self._cache = json.loads(self.cache_path.read_text(encoding="utf-8"))
+        if not self.cache_path.exists():
+            return
+        size = self.cache_path.stat().st_size
+        if size > _MAX_CACHE_LOAD_BYTES:
+            # Pipeline cache can be multi-GB; loading it OOMs the API (seen ~10GB RSS).
+            print(
+                f"Skipping embedding disk cache ({size / 1e9:.2f} GB > "
+                f"{_MAX_CACHE_LOAD_BYTES / 1e6:.0f} MB limit). Using Chroma + live embeds."
+            )
+            return
+        self._cache = json.loads(self.cache_path.read_text(encoding="utf-8"))
 
     def _save_cache(self) -> None:
+        if not self._load_disk_cache:
+            return
+        if self.cache_path.exists() and self.cache_path.stat().st_size > _MAX_CACHE_LOAD_BYTES:
+            return
         self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         self.cache_path.write_text(json.dumps(self._cache), encoding="utf-8")
+
+    def _remember(self, key: str, vector: list[float]) -> None:
+        if len(self._cache) >= _MAX_MEMORY_ENTRIES and key not in self._cache:
+            # Drop an arbitrary old entry (FIFO-ish via iterator)
+            try:
+                del self._cache[next(iter(self._cache))]
+            except StopIteration:
+                pass
+        self._cache[key] = vector
 
     def embed_text(self, text: str, cache_key: str | None = None) -> list[float]:
         key = cache_key or text[:200]
         if key in self._cache:
             return self._cache[key]
         vector = self.backend.embed_batch([text])[0]
-        self._cache[key] = vector
-        self._save_cache()
+        self._remember(key, vector)
         return vector
 
     def embed_batch(self, texts: list[str], cache_keys: list[str] | None = None) -> list[list[float]]:
@@ -133,9 +163,16 @@ class EmbeddingService:
                 vectors = self.backend.embed_batch(chunk_texts)
                 for idx, vector in zip(chunk_indices, vectors):
                     results[idx] = vector
-                    self._cache[keys[idx]] = vector
-                self._save_cache()
+                    self._remember(keys[idx], vector)
+                if self._load_disk_cache:
+                    self._save_cache()
 
         if any(r is None for r in results):
             raise RuntimeError("Error interno: embeddings incompletos tras embed_batch")
         return results  # type: ignore[return-value]
+
+
+@lru_cache
+def get_embedding_service() -> EmbeddingService:
+    """Process-wide singleton for API agents (no multi-GB disk cache)."""
+    return EmbeddingService(load_disk_cache=False)

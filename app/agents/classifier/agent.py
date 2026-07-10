@@ -6,14 +6,14 @@ from pathlib import Path
 
 from app.config import Settings, get_settings
 from app.constants import TOP9_CATEGORIES
-from app.services.embeddings import EmbeddingService
+from app.services.embeddings import EmbeddingService, get_embedding_service
 from app.storage.vector_db.client import get_tickets_collection
 
 
 class ClassifierAgent:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
-        self.embedder = EmbeddingService(self.settings)
+        self.embedder = get_embedding_service()
         self.collection = get_tickets_collection(self.settings)
         self._category_counts: Counter | None = None
 

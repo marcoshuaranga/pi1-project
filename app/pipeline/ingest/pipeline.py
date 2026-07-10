@@ -32,7 +32,8 @@ class IngestionPipeline:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
         self.anonymizer = Anonymizer()
-        self.embedder = EmbeddingService(self.settings)
+        # Pipeline may use disk cache for resume; still skip if file is multi-GB.
+        self.embedder = EmbeddingService(self.settings, load_disk_cache=True)
         self.output_dir = Path(self.settings.data_processed_path)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 

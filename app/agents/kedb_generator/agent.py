@@ -40,7 +40,8 @@ KEDB_TEMPLATE = """
 class KedbGeneratorAgent:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
-        self.embedder = EmbeddingService(self.settings)
+        # Pipeline-style cache OK here only when explicitly enabled; API must not load multi-GB JSON.
+        self.embedder = EmbeddingService(self.settings, load_disk_cache=False)
         self.collection = get_tickets_collection(self.settings)
         self.store = KedbStore(self.settings)
         self.llm = OpenAI(api_key=self.settings.openai_api_key)

@@ -2,14 +2,14 @@
 
 from app.config import Settings, get_settings
 from app.schemas import SolucionSugerida
-from app.services.embeddings import EmbeddingService
+from app.services.embeddings import get_embedding_service
 from app.storage.vector_db.client import get_kedb_collection, get_tickets_collection
 
 
 class RAGAgent:
     def __init__(self, settings: Settings | None = None, top_k: int = 5):
         self.settings = settings or get_settings()
-        self.embedder = EmbeddingService(self.settings)
+        self.embedder = get_embedding_service()
         self.tickets_col = get_tickets_collection(self.settings)
         self.kedb_col = get_kedb_collection(self.settings)
         self.top_k = top_k

@@ -5,14 +5,22 @@ export default function ExpertPage() {
   const [pendientes, setPendientes] = useState<KedbArticulo[]>([]);
   const [selected, setSelected] = useState<KedbArticulo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
 
   const load = async () => {
     setLoading(true);
+    setError("");
     try {
       const list = await api.getPendientes();
       setPendientes(list);
-      if (list.length && !selected) setSelected(list[0]);
+      setSelected((prev) => {
+        if (!list.length) return null;
+        if (prev && list.some((a) => a.articulo_id === prev.articulo_id)) return prev;
+        return list[0];
+      });
+    } catch (e) {
+      setError(String(e));
     } finally {
       setLoading(false);
     }
@@ -24,18 +32,26 @@ export default function ExpertPage() {
 
   const handleApprove = async () => {
     if (!selected) return;
-    const updated = await api.approveArticulo(selected.articulo_id);
-    setSelected(updated);
-    setMsg("Artículo aprobado — disponible para RAG.");
-    await load();
+    try {
+      const updated = await api.approveArticulo(selected.articulo_id);
+      setSelected(updated);
+      setMsg("Artículo aprobado — disponible para RAG y Live Docs.");
+      await load();
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
   const handleReject = async () => {
     if (!selected) return;
-    await api.rejectArticulo(selected.articulo_id);
-    setMsg("Artículo rechazado.");
-    setSelected(null);
-    await load();
+    try {
+      await api.rejectArticulo(selected.articulo_id);
+      setMsg("Artículo rechazado.");
+      setSelected(null);
+      await load();
+    } catch (e) {
+      setError(String(e));
+    }
   };
 
   return (
@@ -45,11 +61,21 @@ export default function ExpertPage() {
         <span className="ml-4 badge badge-warning">{pendientes.length} pendientes</span>
       </div>
 
-      {loading ? (
-        <span className="loading loading-spinner" />
-      ) : pendientes.length === 0 ? (
+      {error && (
+        <div className="alert alert-error mb-4 text-sm">
+          <span>{error}</span>
+          <button className="btn btn-sm" onClick={load}>Reintentar</button>
+        </div>
+      )}
+
+      {loading && pendientes.length === 0 ? (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="loading loading-spinner" />
+          Cargando pendientes desde la API…
+        </div>
+      ) : pendientes.length === 0 && !error ? (
         <div className="alert alert-info">
-          No hay artículos pendientes. Ejecuta POST /kedb/generate para crear borradores.
+          No hay artículos pendientes. Encola POST /kedb/generate (worker ARQ) o /kedb/seed-demo para crear borradores.
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
