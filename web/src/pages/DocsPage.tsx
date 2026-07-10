@@ -5,18 +5,21 @@ export default function DocsPage() {
   const [docs, setDocs] = useState<KedbDoc[]>([]);
   const [selected, setSelected] = useState<KedbDoc | null>(null);
   const [markdown, setMarkdown] = useState("");
-  const [filtro, setFiltro] = useState<"todos" | "validado" | "borrador">("todos");
+  const [filtro, setFiltro] = useState<"validado" | "todos" | "borrador">("validado");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
 
   const load = async () => {
     setLoading(true);
     try {
-      const estado = filtro === "todos" ? undefined : filtro;
-      const list = await api.listDocs(estado);
+      const list = await api.listDocs(filtro);
       setDocs(list);
-      if (list.length && !selected) {
-        await openDoc(list[0]);
+      if (list.length) {
+        const still = selected && list.find((d) => d.articulo_id === selected.articulo_id);
+        await openDoc(still || list[0]);
+      } else {
+        setSelected(null);
+        setMarkdown("");
       }
     } finally {
       setLoading(false);
@@ -30,8 +33,8 @@ export default function DocsPage() {
   };
 
   const exportAll = async () => {
-    const res = await api.exportDocs();
-    setMsg(`Exportados ${res.exported} artículos a Markdown.`);
+    const res = await api.exportDocs(true);
+    setMsg(`Publicados ${res.exported} artículos validados → Markdown.`);
     await load();
   };
 
@@ -50,18 +53,19 @@ export default function DocsPage() {
             value={filtro}
             onChange={(e) => setFiltro(e.target.value as typeof filtro)}
           >
-            <option value="todos">Todos</option>
-            <option value="validado">Validados</option>
-            <option value="borrador">Borradores</option>
+            <option value="validado">Validados (live)</option>
+            <option value="todos">Todos los .md</option>
+            <option value="borrador">Borradores (si hay .md)</option>
           </select>
           <button className="btn btn-sm btn-neutral" onClick={exportAll}>
-            Sync SQLite → MD
+            Publicar validados → MD
           </button>
         </div>
       </div>
 
       <p className="text-sm text-base-content/70 mb-4">
-        Archivos en <code>data/kedb/articles/*.md</code> — visibles en el host y en esta vista.
+        Live docs = proyección Markdown de artículos <strong>validados</strong>.
+        SQLite sigue siendo la fuente de verdad. Archivos en <code>data/kedb/articles/*.md</code>.
       </p>
 
       {msg && <div className="alert alert-success mb-4 text-sm">{msg}</div>}
@@ -70,7 +74,8 @@ export default function DocsPage() {
         <span className="loading loading-spinner" />
       ) : docs.length === 0 ? (
         <div className="alert">
-          No hay Markdown aún. Pulsa <strong>Sync SQLite → MD</strong> o aprueba artículos en Experto.
+          No hay docs publicados. Aprueba un artículo en Experto o pulsa{" "}
+          <strong>Publicar validados → MD</strong>.
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

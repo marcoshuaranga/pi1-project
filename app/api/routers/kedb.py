@@ -71,6 +71,7 @@ async def update_articulo(articulo_id: str, body: KedbArticuloUpdate):
     if not articulo:
         raise HTTPException(status_code=404, detail="Artículo no encontrado")
     if articulo.estado == KedbEstado.VALIDADO:
+        get_store().publish_markdown(articulo)
         texto = f"{articulo.titulo}\n{articulo.sintoma}\n{articulo.solucion}"
         get_rag().index_articulo(
             articulo_id,
@@ -133,36 +134,37 @@ async def seed_demo():
 
 
 @router.post("/export-docs")
-async def export_docs():
-    """Sync all SQLite articles to Markdown under data/kedb/articles/."""
-    count = get_store().export_all_markdown()
-    return {"exported": count, "path": "/data/kedb/articles"}
+async def export_docs(solo_validados: bool = True):
+    """Publish Markdown live-docs from SQLite (default: only validated)."""
+    count = get_store().export_all_markdown(solo_validados=solo_validados)
+    return {
+        "exported": count,
+        "solo_validados": solo_validados,
+        "path": "/data/kedb/articles",
+    }
 
 
 @router.get("/docs")
-async def list_docs(estado: str | None = None):
-    """List Markdown live-docs files (and optional estado filter from frontmatter)."""
+async def list_docs(estado: str | None = "validado"):
+    """List Markdown live-docs (default: validated only)."""
     from app.storage.kedb_store.markdown import list_markdown_docs
 
     docs = list_markdown_docs()
-    if estado:
+    if estado and estado != "todos":
         docs = [d for d in docs if d.get("estado") == estado]
     return docs
 
 
 @router.get("/docs/{articulo_id}")
 async def get_doc(articulo_id: str):
-    """Return Markdown content for a KEDB article."""
-    from app.storage.kedb_store.markdown import read_markdown
+    """Return Markdown content for a published KEDB article."""
+    from app.storage.kedb_store.markdown import read_markdown, write_markdown
 
     content = read_markdown(articulo_id)
     if content is None:
-        # Fallback: export from SQLite if article exists but MD missing
         articulo = get_store().get(articulo_id)
-        if not articulo:
-            raise HTTPException(status_code=404, detail="Documento no encontrado")
-        from app.storage.kedb_store.markdown import write_markdown
-
+        if not articulo or articulo.estado != KedbEstado.VALIDADO:
+            raise HTTPException(status_code=404, detail="Documento no publicado")
         path = write_markdown(articulo)
         content = path.read_text(encoding="utf-8")
     return {"articulo_id": articulo_id, "markdown": content}

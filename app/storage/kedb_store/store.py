@@ -9,7 +9,6 @@ from pathlib import Path
 
 from app.config import Settings, get_settings
 from app.schemas import KedbArticulo, KedbArticuloUpdate, KedbEstado
-from app.storage.kedb_store.markdown import write_markdown
 
 
 class KedbStore:
@@ -112,7 +111,6 @@ class KedbStore:
                     articulo.aplicable_a,
                 ),
             )
-        write_markdown(articulo, self.settings)
         return articulo
 
     def get(self, articulo_id: str) -> KedbArticulo | None:
@@ -151,17 +149,25 @@ class KedbStore:
         values = list(updates.values()) + [articulo_id]
         with self._conn() as conn:
             conn.execute(f"UPDATE kedb_articulos SET {set_clause} WHERE articulo_id = ?", values)
-        updated = self.get(articulo_id)
-        if updated:
-            write_markdown(updated, self.settings)
-        return updated
+        return self.get(articulo_id)
 
-    def export_all_markdown(self) -> int:
-        """Sync all SQLite articles to Markdown files."""
-        articulos = self.list_all()
+    def export_all_markdown(self, solo_validados: bool = True) -> int:
+        """Publish Markdown projection. By default only validated articles (live docs)."""
+        from app.storage.kedb_store.markdown import write_markdown
+
+        articulos = (
+            self.list_all(estado=KedbEstado.VALIDADO) if solo_validados else self.list_all()
+        )
         for articulo in articulos:
             write_markdown(articulo, self.settings)
         return len(articulos)
+
+    def publish_markdown(self, articulo: KedbArticulo) -> None:
+        """Write Markdown only for validated articles (docs projection)."""
+        from app.storage.kedb_store.markdown import write_markdown
+
+        if articulo.estado == KedbEstado.VALIDADO:
+            write_markdown(articulo, self.settings)
 
     def pendientes(self) -> list[KedbArticulo]:
         return self.list_all(estado=KedbEstado.BORRADOR)

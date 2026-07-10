@@ -93,12 +93,15 @@ export const api = {
 
   getEvaluacion: () => request<Record<string, unknown>>("/metrics/evaluacion"),
 
-  listDocs: (estado?: string) =>
-    request<KedbDoc[]>(`/kedb/docs${estado ? `?estado=${estado}` : ""}`),
+  listDocs: (estado: string = "validado") =>
+    request<KedbDoc[]>(`/kedb/docs?estado=${encodeURIComponent(estado)}`),
 
   getDoc: (id: string) =>
     request<{ articulo_id: string; markdown: string }>(`/kedb/docs/${id}`),
 
-  exportDocs: () =>
-    request<{ exported: number; path: string }>("/kedb/export-docs", { method: "POST" }),
+  exportDocs: (soloValidados = true) =>
+    request<{ exported: number; path: string; solo_validados: boolean }>(
+      `/kedb/export-docs?solo_validados=${soloValidados}`,
+      { method: "POST" }
+    ),
 };
