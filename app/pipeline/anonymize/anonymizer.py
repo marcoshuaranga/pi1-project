@@ -2,6 +2,7 @@
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 import spacy
 
@@ -32,10 +33,15 @@ class AnonymizationResult:
 
 
 class Anonymizer:
-    def __init__(self):
-        try:
-            self.nlp = spacy.load("es_core_news_lg")
-        except OSError:
+    def __init__(self, nlp=None, *, load_model: bool = True):
+        if nlp is not None:
+            self.nlp = nlp
+        elif load_model:
+            try:
+                self.nlp = spacy.load("es_core_news_lg")
+            except OSError:
+                self.nlp = None
+        else:
             self.nlp = None
 
     def _is_mtc_entity(self, text: str) -> bool:
@@ -64,3 +70,9 @@ class Anonymizer:
                 result = result[:start] + token + result[end:]
 
         return AnonymizationResult(text=result, replacements=replacements)
+
+
+@lru_cache
+def get_anonymizer() -> Anonymizer:
+    """Process-wide singleton — spaCy lg is heavy; do not reload per Orchestrator."""
+    return Anonymizer()

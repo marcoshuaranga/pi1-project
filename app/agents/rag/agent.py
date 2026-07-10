@@ -1,9 +1,13 @@
 """C5 — RAG agent: Top-K similar solutions from tickets + KEDB."""
 
+import logging
+
 from app.config import Settings, get_settings
 from app.schemas import SolucionSugerida
 from app.services.embeddings import get_embedding_service
 from app.storage.vector_db.client import get_kedb_collection, get_tickets_collection
+
+logger = logging.getLogger(__name__)
 
 
 class RAGAgent:
@@ -26,7 +30,7 @@ class RAGAgent:
             )
             soluciones.extend(self._parse_results(ticket_results, "ticket"))
         except Exception:
-            pass
+            logger.exception("Chroma query falló en colección de tickets")
 
         # Search validated KEDB articles
         try:
@@ -37,6 +41,7 @@ class RAGAgent:
             )
             soluciones.extend(self._parse_results(kedb_results, "kedb"))
         except Exception:
+            logger.debug("Filtro estado=validado no disponible; reintento sin where", exc_info=True)
             try:
                 kedb_results = self.kedb_col.query(
                     query_embeddings=[vector],
@@ -44,7 +49,7 @@ class RAGAgent:
                 )
                 soluciones.extend(self._parse_results(kedb_results, "kedb"))
             except Exception:
-                pass
+                logger.exception("Chroma query falló en colección KEDB")
 
         soluciones.sort(key=lambda s: s.score, reverse=True)
         seen = set()
@@ -83,6 +88,7 @@ class RAGAgent:
             results = self.kedb_col.query(query_embeddings=[vector], n_results=top_k)
             parsed = self._parse_results(results, "kedb")
         except Exception:
+            logger.exception("Búsqueda KEDB falló")
             parsed = []
         self.top_k = old_k
         return parsed

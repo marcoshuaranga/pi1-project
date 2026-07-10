@@ -2,6 +2,7 @@
 
 import json
 import random
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sklearn.metrics import f1_score
@@ -21,7 +22,13 @@ class EvaluationFramework:
     def run_evaluation(self, sample_size: int = 100) -> dict:
         eval_path = self.processed / "tickets_eval.json"
         if not eval_path.exists():
-            return {"f1_macro": 0.0, "recall_at_5": 0.0, "muestra": 0, "kappa": None}
+            return {
+                "f1_macro": 0.0,
+                "recall_at_5": 0.0,
+                "muestra": 0,
+                "kappa": None,
+                "fecha_calculo": datetime.now(timezone.utc).isoformat(),
+            }
 
         data = json.loads(eval_path.read_text(encoding="utf-8"))
         random.seed(self.settings.random_seed)
@@ -55,6 +62,7 @@ class EvaluationFramework:
             "recall_at_5": round(recall, 4),
             "muestra": n,
             "kappa": None,
+            "fecha_calculo": datetime.now(timezone.utc).isoformat(),
         }
         out = self.processed / "evaluation_results.json"
         out.write_text(json.dumps(result, indent=2), encoding="utf-8")

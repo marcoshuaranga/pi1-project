@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 
@@ -29,25 +26,10 @@ def _generate_kedb_sync(max_articles: int, keyword: str | None) -> dict[str, Any
 
 
 def _run_evaluation_sync() -> dict[str, Any]:
-    from app.config import get_settings
     from app.evaluation.metrics import EvaluationFramework
 
-    framework = EvaluationFramework()
-    metrics = framework.run_evaluation()
-    payload = {
-        "f1_macro": metrics["f1_macro"],
-        "recall_at_5": metrics["recall_at_5"],
-        "kappa": metrics.get("kappa"),
-        "muestra": metrics.get("muestra", 0),
-        "fecha_calculo": datetime.now(timezone.utc).isoformat(),
-    }
-    processed = Path(get_settings().data_processed_path)
-    processed.mkdir(parents=True, exist_ok=True)
-    (processed / "evaluation_results.json").write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    return payload
+    # Framework already persists evaluation_results.json with fecha_calculo.
+    return EvaluationFramework().run_evaluation()
 
 
 async def generate_kedb(

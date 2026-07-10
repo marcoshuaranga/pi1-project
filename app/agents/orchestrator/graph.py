@@ -10,7 +10,7 @@ from typing_extensions import TypedDict
 from app.agents.classifier.agent import ClassifierAgent
 from app.agents.prioritizer.agent import PrioritizerAgent
 from app.agents.rag.agent import RAGAgent
-from app.pipeline.anonymize.anonymizer import Anonymizer
+from app.pipeline.anonymize.anonymizer import get_anonymizer
 from app.schemas import (
     AgenteTipo,
     EventoTipo,
@@ -35,7 +35,7 @@ class PipelineState(TypedDict, total=False):
 
 class Orchestrator:
     def __init__(self, on_event: Callable[[PipelineEvento], None] | None = None):
-        self.anonymizer = Anonymizer()
+        self.anonymizer = get_anonymizer()
         self.classifier = ClassifierAgent()
         self.prioritizer = PrioritizerAgent()
         self.rag = RAGAgent()

@@ -41,9 +41,27 @@ export interface KedbDoc {
   path?: string;
 }
 
+export interface JobStatus {
+  job_id: string;
+  status: string;
+  task?: string;
+  success?: boolean;
+  result?: unknown;
+  error?: string;
+}
+
+export interface JobEnqueue {
+  job_id: string;
+  status: string;
+  task: string;
+}
+
+const REQUEST_TIMEOUT_MS = 15_000;
+const JOB_POLL_INTERVAL_MS = 5_000;
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const res = await fetch(`${API_URL}${path}`, {
       headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
@@ -54,11 +72,45 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     return res.json();
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") {
-      throw new Error("La API no respondió a tiempo (20s). Revisa que el contenedor api esté healthy.");
+      throw new Error("La API no respondió a tiempo (15s). Revisa que el contenedor api esté healthy.");
     }
     throw e;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+/** Poll GET /jobs/{id} every 5s until complete / not_found / abort. */
+export async function pollJob(
+  jobId: string,
+  options?: {
+    intervalMs?: number;
+    signal?: AbortSignal;
+    onStatus?: (job: JobStatus) => void;
+  }
+): Promise<JobStatus> {
+  const intervalMs = options?.intervalMs ?? JOB_POLL_INTERVAL_MS;
+  while (true) {
+    if (options?.signal?.aborted) {
+      throw new DOMException("Polling cancelado", "AbortError");
+    }
+    const job = await api.getJob(jobId);
+    options?.onStatus?.(job);
+    if (job.status === "complete") return job;
+    if (job.status === "not_found") {
+      throw new Error(`Job ${jobId} no encontrado`);
+    }
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(resolve, intervalMs);
+      options?.signal?.addEventListener(
+        "abort",
+        () => {
+          clearTimeout(timer);
+          reject(new DOMException("Polling cancelado", "AbortError"));
+        },
+        { once: true }
+      );
+    });
   }
 }
 
@@ -108,28 +160,17 @@ export const api = {
   getEvaluacion: () => request<Record<string, unknown>>("/metrics/evaluacion"),
 
   enqueueEvaluacion: () =>
-    request<{ job_id: string; status: string; task: string }>("/metrics/evaluacion", {
+    request<JobEnqueue>("/metrics/evaluacion", {
       method: "POST",
     }),
 
   enqueueKedbGenerate: (maxArticles = 50, keyword?: string) => {
     const params = new URLSearchParams({ max_articles: String(maxArticles) });
     if (keyword) params.set("keyword", keyword);
-    return request<{ job_id: string; status: string; task: string }>(
-      `/kedb/generate?${params}`,
-      { method: "POST" }
-    );
+    return request<JobEnqueue>(`/kedb/generate?${params}`, { method: "POST" });
   },
 
-  getJob: (jobId: string) =>
-    request<{
-      job_id: string;
-      status: string;
-      task?: string;
-      success?: boolean;
-      result?: unknown;
-      error?: string;
-    }>(`/jobs/${jobId}`),
+  getJob: (jobId: string) => request<JobStatus>(`/jobs/${jobId}`),
 
   listDocs: (estado: string = "validado") =>
     request<KedbDoc[]>(`/kedb/docs?estado=${encodeURIComponent(estado)}`),

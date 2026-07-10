@@ -1,5 +1,6 @@
 """KEDB endpoints (HU08a/b, HU10, HU14, HU16, HU17)."""
 
+import asyncio
 from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query
@@ -21,6 +22,23 @@ def get_store() -> KedbStore:
 @lru_cache
 def get_rag() -> RAGAgent:
     return RAGAgent()
+
+
+def _publish_and_index(articulo: KedbArticulo) -> None:
+    """Markdown export + Chroma upsert — keep off the API event loop."""
+    get_store().publish_markdown(articulo)
+    texto = f"{articulo.titulo}\n{articulo.sintoma}\n{articulo.solucion}"
+    get_rag().index_articulo(
+        articulo.articulo_id,
+        texto,
+        {
+            "titulo": articulo.titulo,
+            "solucion": articulo.solucion,
+            "categoria": articulo.categoria,
+            "estado": "validado",
+            "tipo": "kedb",
+        },
+    )
 
 
 @router.post("/generate", response_model=JobEnqueueResponse, status_code=202)
@@ -69,19 +87,7 @@ async def update_articulo(articulo_id: str, body: KedbArticuloUpdate):
     if not articulo:
         raise HTTPException(status_code=404, detail="Artículo no encontrado")
     if articulo.estado == KedbEstado.VALIDADO:
-        get_store().publish_markdown(articulo)
-        texto = f"{articulo.titulo}\n{articulo.sintoma}\n{articulo.solucion}"
-        get_rag().index_articulo(
-            articulo_id,
-            texto,
-            {
-                "titulo": articulo.titulo,
-                "solucion": articulo.solucion,
-                "categoria": articulo.categoria,
-                "estado": "validado",
-                "tipo": "kedb",
-            },
-        )
+        await asyncio.to_thread(_publish_and_index, articulo)
     return articulo
 
 
@@ -171,5 +177,5 @@ async def get_doc(articulo_id: str):
 @router.get("/buscar")
 async def buscar_kedb(q: str = Query(..., min_length=2)):
     """HU16 — semantic search on KEDB."""
-    results = get_rag().search_kedb(q)
+    results = await asyncio.to_thread(get_rag().search_kedb, q)
     return {"query": q, "results": [r.model_dump() for r in results]}

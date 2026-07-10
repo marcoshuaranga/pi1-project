@@ -1,13 +1,16 @@
 """C3 — Ticket classifier (embedding + kNN over ChromaDB)."""
 
 import json
+import logging
 from collections import Counter
 from pathlib import Path
 
 from app.config import Settings, get_settings
 from app.constants import TOP9_CATEGORIES
-from app.services.embeddings import EmbeddingService, get_embedding_service
+from app.services.embeddings import get_embedding_service
 from app.storage.vector_db.client import get_tickets_collection
+
+logger = logging.getLogger(__name__)
 
 
 class ClassifierAgent:
@@ -39,6 +42,7 @@ class ClassifierAgent:
                 where={"split": "train"},
             )
         except Exception:
+            logger.debug("Filtro split=train no disponible; reintento sin where", exc_info=True)
             results = self.collection.query(query_embeddings=[vector], n_results=15)
 
         metas = results.get("metadatas", [[]])[0]

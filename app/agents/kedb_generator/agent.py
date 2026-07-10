@@ -1,6 +1,7 @@
 """C6 — KEDB generator (HDBSCAN + LLM synthesis)."""
 
 import json
+import logging
 from datetime import datetime, timezone
 
 import hdbscan
@@ -9,9 +10,10 @@ from openai import OpenAI
 
 from app.config import Settings, get_settings
 from app.schemas import KedbArticulo, KedbEstado
-from app.services.embeddings import EmbeddingService
 from app.storage.kedb_store.store import KedbStore, new_articulo_id
 from app.storage.vector_db.client import get_tickets_collection
+
+logger = logging.getLogger(__name__)
 
 
 KEDB_TEMPLATE = """
@@ -40,8 +42,6 @@ KEDB_TEMPLATE = """
 class KedbGeneratorAgent:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
-        # Pipeline-style cache OK here only when explicitly enabled; API must not load multi-GB JSON.
-        self.embedder = EmbeddingService(self.settings, load_disk_cache=False)
         self.collection = get_tickets_collection(self.settings)
         self.store = KedbStore(self.settings)
         self.llm = OpenAI(api_key=self.settings.openai_api_key)
@@ -138,6 +138,7 @@ Responde SOLO con JSON válido."""
             try:
                 articles.append(self.synthesize_article(cluster))
             except Exception:
+                logger.exception("Síntesis KEDB falló para cluster size=%s", cluster.get("size"))
                 continue
         return articles
 
