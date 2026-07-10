@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import Settings, get_settings
-from app.schemas import KedbArticulo, KedbArticuloUpdate, KedbEstado
+from app.schemas import KedbArticulo, KedbArticuloUpdate, KedbEstado, TicketResponse
 
 
 class KedbStore:
@@ -66,6 +66,15 @@ class KedbStore:
                     ticket_id TEXT PRIMARY KEY,
                     categoria_original TEXT,
                     categoria_corregida TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ticket_sessions (
+                    ticket_id TEXT PRIMARY KEY,
+                    payload TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
                 """
@@ -211,6 +220,29 @@ class KedbStore:
                     datetime.now(timezone.utc).isoformat(),
                 ),
             )
+
+    def save_ticket_session(self, response: TicketResponse) -> None:
+        with self._conn() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO ticket_sessions (ticket_id, payload, updated_at)
+                VALUES (?, ?, ?)
+                """,
+                (
+                    response.ticket_id,
+                    response.model_dump_json(),
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+
+    def get_ticket_session(self, ticket_id: str) -> TicketResponse | None:
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT payload FROM ticket_sessions WHERE ticket_id = ?", (ticket_id,)
+            ).fetchone()
+        if not row:
+            return None
+        return TicketResponse.model_validate_json(row["payload"])
 
 
 def new_articulo_id() -> str:

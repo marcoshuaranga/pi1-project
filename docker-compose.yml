@@ -3,6 +3,20 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+        reservations:
+          cpus: "0.05"
+          memory: 32M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 10
+        window: 120s
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -13,11 +27,26 @@ services:
     image: ghcr.io/chroma-core/chroma:0.5.23
     ports:
       - "8001:8000"
+    restart: on-failure
     volumes:
       - chroma_data:/chroma/chroma
     environment:
       - IS_PERSISTENT=TRUE
       - ANONYMIZED_TELEMETRY=FALSE
+    deploy:
+      resources:
+        # Consultas vectoriales concurrentes (API + worker); muestra top-9 no necesita más RAM
+        limits:
+          cpus: "2.00"
+          memory: 2G
+        reservations:
+          cpus: "0.50"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 10
+        window: 120s
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
       interval: 10s
@@ -28,6 +57,7 @@ services:
     build: .
     ports:
       - "8000:8000"
+    restart: on-failure
     env_file:
       - .env
     environment:
@@ -48,6 +78,20 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    deploy:
+      resources:
+        # spaCy lg + embedder + uvicorn (1 proceso) + to_thread; 3G evita OOM sin sobredimensionar
+        limits:
+          cpus: "2.00"
+          memory: 3G
+        reservations:
+          cpus: "0.50"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 10
+        window: 120s
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 15s
@@ -57,6 +101,7 @@ services:
 
   worker:
     build: .
+    restart: on-failure
     env_file:
       - .env
     environment:
@@ -67,6 +112,11 @@ services:
       - DATA_PROCESSED_PATH=/data/processed
       - KEDB_DB_PATH=/data/kedb/kedb.db
       - KEDB_DOCS_PATH=/data/kedb/articles
+      # HDBSCAN/numpy aprovechan varios cores dentro del límite del contenedor
+      - OMP_NUM_THREADS=4
+      - OPENBLAS_NUM_THREADS=4
+      - MKL_NUM_THREADS=4
+      - NUMEXPR_NUM_THREADS=4
     volumes:
       - ./data/processed:/data/processed
       - ./data/raw:/data/raw
@@ -78,6 +128,20 @@ services:
       redis:
         condition: service_healthy
     command: ["arq", "app.jobs.worker.WorkerSettings"]
+    deploy:
+      resources:
+        # max_jobs=1: un job pesado (HDBSCAN/eval); 4G+4CPU es el punto eficiente en demo local
+        limits:
+          cpus: "4.00"
+          memory: 4G
+        reservations:
+          cpus: "1.00"
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 10
+        window: 120s
 
   web:
     build:
@@ -87,12 +151,27 @@ services:
         VITE_API_URL: /api
     ports:
       - "3000:80"
+    restart: on-failure
     depends_on:
       api:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+        reservations:
+          cpus: "0.05"
+          memory: 32M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 10
+        window: 120s
 
   pipeline:
     build: .
+    restart: "no"
     env_file:
       - .env
     environment:
@@ -101,6 +180,10 @@ services:
       - DATA_PROCESSED_PATH=/data/processed
       - KEDB_DB_PATH=/data/kedb/kedb.db
       - KEDB_DOCS_PATH=/data/kedb/articles
+      - OMP_NUM_THREADS=6
+      - OPENBLAS_NUM_THREADS=6
+      - MKL_NUM_THREADS=6
+      - NUMEXPR_NUM_THREADS=6
     volumes:
       - ./data/processed:/data/processed
       - ./data/raw:/data/raw
@@ -112,6 +195,15 @@ services:
     entrypoint: ["python", "-m", "app.pipeline.cli"]
     profiles:
       - pipeline
+    deploy:
+      resources:
+        # Solo al re-ingerir/embeber; batch embeddings + spaCy
+        limits:
+          cpus: "6.00"
+          memory: 6G
+        reservations:
+          cpus: "2.00"
+          memory: 2G
 
 volumes:
   chroma_data:

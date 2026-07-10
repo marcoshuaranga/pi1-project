@@ -86,13 +86,14 @@ def test_create_ticket_no_chroma(client, monkeypatch):
             from app.pipeline.anonymize.anonymizer import AnonymizationResult
             return AnonymizationResult(text=text)
 
-    monkeypatch.setattr("app.agents.orchestrator.graph.Anonymizer", lambda: MockAnonymizer())
+    monkeypatch.setattr("app.agents.orchestrator.graph.get_anonymizer", lambda: MockAnonymizer())
     monkeypatch.setattr("app.agents.orchestrator.graph.ClassifierAgent", lambda: MockClassifier())
     monkeypatch.setattr("app.agents.orchestrator.graph.PrioritizerAgent", lambda: MockPrioritizer())
     monkeypatch.setattr("app.agents.orchestrator.graph.RAGAgent", lambda: MockRAG())
 
-    from app.api.routers.tickets import get_orchestrator
+    from app.api.deps import get_kedb_store, get_orchestrator
     get_orchestrator.cache_clear()
+    get_kedb_store.cache_clear()
 
     response = client.post("/tickets", json={"texto": "Impresora no imprime"})
     assert response.status_code == 200

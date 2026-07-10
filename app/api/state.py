@@ -1,13 +1,19 @@
-"""In-memory ticket store for session state."""
+"""Persistent ticket session store (SQLite via KedbStore)."""
+
+from functools import lru_cache
 
 from app.schemas import TicketResponse
+from app.storage.kedb_store.store import KedbStore
 
-_ticket_store: dict[str, TicketResponse] = {}
+
+@lru_cache
+def _store() -> KedbStore:
+    return KedbStore()
 
 
 def save_ticket(response: TicketResponse) -> None:
-    _ticket_store[response.ticket_id] = response
+    _store().save_ticket_session(response)
 
 
 def get_ticket(ticket_id: str) -> TicketResponse | None:
-    return _ticket_store.get(ticket_id)
+    return _store().get_ticket_session(ticket_id)

@@ -1,6 +1,7 @@
 """C7 — LangGraph orchestrator (sequential pipeline)."""
 
 import uuid
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import Callable
 
@@ -17,6 +18,10 @@ from app.schemas import (
     PipelineEvento,
     SolucionSugerida,
     TicketResponse,
+)
+
+_on_event_ctx: ContextVar[Callable[[PipelineEvento], None] | None] = ContextVar(
+    "orchestrator_on_event", default=None
 )
 
 
@@ -59,8 +64,9 @@ class Orchestrator:
             entrada=entrada,
             salida=salida,
         )
-        if self.on_event:
-            self.on_event(evento)
+        callback = _on_event_ctx.get() or self.on_event
+        if callback:
+            callback(evento)
         return evento
 
     def _build_graph(self):
@@ -110,20 +116,29 @@ class Orchestrator:
 
         return graph.compile()
 
-    def process_ticket(self, texto: str, ticket_id: str | None = None) -> TicketResponse:
+    def process_ticket(
+        self,
+        texto: str,
+        ticket_id: str | None = None,
+        on_event: Callable[[PipelineEvento], None] | None = None,
+    ) -> TicketResponse:
         tid = ticket_id or f"T-{uuid.uuid4().hex[:8].upper()}"
-        initial: PipelineState = {"ticket_id": tid, "texto": texto, "eventos": []}
-        result = self.graph.invoke(initial)
-        soluciones = [
-            SolucionSugerida(**s) if isinstance(s, dict) else s
-            for s in result.get("soluciones", [])
-        ]
-        self._emit(AgenteTipo.ORQUESTADOR, tid, EventoTipo.FIN)
-        return TicketResponse(
-            ticket_id=tid,
-            categoria=result.get("categoria", ""),
-            confianza=result.get("confianza", 0.0),
-            prioridad=result.get("prioridad", "Media"),
-            justificacion_prioridad=result.get("justificacion_prioridad"),
-            soluciones=soluciones,
-        )
+        token = _on_event_ctx.set(on_event)
+        try:
+            initial: PipelineState = {"ticket_id": tid, "texto": texto, "eventos": []}
+            result = self.graph.invoke(initial)
+            soluciones = [
+                SolucionSugerida(**s) if isinstance(s, dict) else s
+                for s in result.get("soluciones", [])
+            ]
+            self._emit(AgenteTipo.ORQUESTADOR, tid, EventoTipo.FIN)
+            return TicketResponse(
+                ticket_id=tid,
+                categoria=result.get("categoria", ""),
+                confianza=result.get("confianza", 0.0),
+                prioridad=result.get("prioridad", "Media"),
+                justificacion_prioridad=result.get("justificacion_prioridad"),
+                soluciones=soluciones,
+            )
+        finally:
+            _on_event_ctx.reset(token)

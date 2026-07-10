@@ -1,26 +1,14 @@
 """Ticket assistance endpoints (HU01, HU04, HU06)."""
 
 import asyncio
-from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException
 
-from app.agents.orchestrator.graph import Orchestrator
+from app.api.deps import get_kedb_store, get_orchestrator
 from app.api.state import get_ticket, save_ticket
 from app.schemas import CategoriaCorreccion, FeedbackRequest, TicketInput, TicketResponse
-from app.storage.kedb_store.store import KedbStore
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
-
-
-@lru_cache
-def get_orchestrator() -> Orchestrator:
-    return Orchestrator()
-
-
-@lru_cache
-def get_kedb_store() -> KedbStore:
-    return KedbStore()
 
 
 @router.post("", response_model=TicketResponse)
