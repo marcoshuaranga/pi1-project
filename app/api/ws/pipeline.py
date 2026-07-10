@@ -25,6 +25,14 @@ async def broadcast_event(ticket_id: str, evento: PipelineEvento) -> None:
         _connections[ticket_id].remove(ws)
 
 
+def _process_ticket_sync(texto: str, ticket_id: str, loop: asyncio.AbstractEventLoop):
+    def on_event(evento: PipelineEvento):
+        asyncio.run_coroutine_threadsafe(broadcast_event(ticket_id, evento), loop)
+
+    orch = Orchestrator(on_event=on_event)
+    return orch.process_ticket(texto, ticket_id=ticket_id)
+
+
 @router.websocket("/ws/pipeline/{ticket_id}")
 async def pipeline_ws(websocket: WebSocket, ticket_id: str):
     await websocket.accept()
@@ -33,15 +41,10 @@ async def pipeline_ws(websocket: WebSocket, ticket_id: str):
         while True:
             data = await websocket.receive_json()
             if data.get("action") == "process" and data.get("texto"):
-                loop = asyncio.get_event_loop()
-
-                def on_event(evento: PipelineEvento):
-                    asyncio.run_coroutine_threadsafe(
-                        broadcast_event(ticket_id, evento), loop
-                    )
-
-                orch = Orchestrator(on_event=on_event)
-                response = orch.process_ticket(data["texto"], ticket_id=ticket_id)
+                loop = asyncio.get_running_loop()
+                response = await asyncio.to_thread(
+                    _process_ticket_sync, data["texto"], ticket_id, loop
+                )
                 save_ticket(response)
                 await websocket.send_json({"type": "result", "data": response.model_dump()})
     except WebSocketDisconnect:

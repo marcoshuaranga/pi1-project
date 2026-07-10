@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// In Docker/production the browser talks to same origin (/api → nginx → api).
+// Override with VITE_API_URL only for local Vite dev (e.g. http://localhost:8000).
+const API_URL = import.meta.env.VITE_API_URL ?? "/api";
 
 export interface Solucion {
   articulo_o_ticket_id: string;
@@ -40,12 +42,24 @@ export interface KedbDoc {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
+      ...options,
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error("La API no respondió a tiempo (20s). Revisa que el contenedor api esté healthy.");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export const api = {
@@ -92,6 +106,30 @@ export const api = {
   getDashboard: () => request<Record<string, unknown>>("/metrics/dashboard"),
 
   getEvaluacion: () => request<Record<string, unknown>>("/metrics/evaluacion"),
+
+  enqueueEvaluacion: () =>
+    request<{ job_id: string; status: string; task: string }>("/metrics/evaluacion", {
+      method: "POST",
+    }),
+
+  enqueueKedbGenerate: (maxArticles = 50, keyword?: string) => {
+    const params = new URLSearchParams({ max_articles: String(maxArticles) });
+    if (keyword) params.set("keyword", keyword);
+    return request<{ job_id: string; status: string; task: string }>(
+      `/kedb/generate?${params}`,
+      { method: "POST" }
+    );
+  },
+
+  getJob: (jobId: string) =>
+    request<{
+      job_id: string;
+      status: string;
+      task?: string;
+      success?: boolean;
+      result?: unknown;
+      error?: string;
+    }>(`/jobs/${jobId}`),
 
   listDocs: (estado: string = "validado") =>
     request<KedbDoc[]>(`/kedb/docs?estado=${encodeURIComponent(estado)}`),

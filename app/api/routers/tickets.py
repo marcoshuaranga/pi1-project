@@ -1,5 +1,6 @@
 """Ticket assistance endpoints (HU01, HU04, HU06)."""
 
+import asyncio
 from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException
@@ -25,7 +26,7 @@ def get_kedb_store() -> KedbStore:
 @router.post("", response_model=TicketResponse)
 async def create_ticket(body: TicketInput) -> TicketResponse:
     """HU01 + HU04 + HU06 — classify, prioritize, retrieve solutions."""
-    response = get_orchestrator().process_ticket(body.texto)
+    response = await asyncio.to_thread(get_orchestrator().process_ticket, body.texto)
     save_ticket(response)
     return response
 

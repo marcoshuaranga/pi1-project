@@ -25,6 +25,8 @@ dependencies = [
     "websockets>=14.0",
     "aiosqlite>=0.20.0",
     "fastembed>=0.4.2",
+    "arq>=0.26.0",
+    "redis>=5.0.0",
 ]
 
 [project.optional-dependencies]

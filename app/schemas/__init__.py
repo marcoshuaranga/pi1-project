@@ -134,3 +134,18 @@ class MetricasEvaluacion(BaseModel):
     kappa: float | None = None
     fecha_calculo: datetime
     muestra_tickets: int
+
+
+class JobEnqueueResponse(BaseModel):
+    job_id: str
+    status: str = "queued"
+    task: str
+
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    task: str | None = None
+    success: bool | None = None
+    result: Any | None = None
+    error: str | None = None

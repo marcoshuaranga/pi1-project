@@ -6,10 +6,9 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.config import get_settings
-from app.evaluation.metrics import EvaluationFramework
 from app.schemas import MetricasEvaluacion
 from app.storage.kedb_store.store import KedbStore
 
@@ -23,15 +22,60 @@ def get_store() -> KedbStore:
 
 @router.get("/evaluacion", response_model=MetricasEvaluacion)
 async def get_evaluacion():
-    """C9 — F1, Recall@5 metrics."""
-    framework = EvaluationFramework()
-    metrics = framework.run_evaluation()
+    """C9 — F1, Recall@5 metrics from cached results.
+
+    To recompute, POST /metrics/evaluacion (ARQ worker).
+    """
+    settings = get_settings()
+    processed = Path(settings.data_processed_path)
+    cached = processed / "evaluation_results.json"
+
+    if cached.exists():
+        data = json.loads(cached.read_text(encoding="utf-8"))
+        fecha = data.get("fecha_calculo")
+        if isinstance(fecha, str):
+            try:
+                fecha_calculo = datetime.fromisoformat(fecha)
+            except ValueError:
+                fecha_calculo = datetime.now(timezone.utc)
+        else:
+            fecha_calculo = datetime.now(timezone.utc)
+        return MetricasEvaluacion(
+            f1_macro=data.get("f1_macro", 0.0),
+            recall_at_5=data.get("recall_at_5", 0.0),
+            kappa=data.get("kappa"),
+            fecha_calculo=fecha_calculo,
+            muestra_tickets=data.get("muestra", 0),
+        )
+
     return MetricasEvaluacion(
-        f1_macro=metrics["f1_macro"],
-        recall_at_5=metrics["recall_at_5"],
-        kappa=metrics.get("kappa"),
+        f1_macro=0.0,
+        recall_at_5=0.0,
+        kappa=None,
         fecha_calculo=datetime.now(timezone.utc),
-        muestra_tickets=metrics.get("muestra", 0),
+        muestra_tickets=0,
+    )
+
+
+@router.post("/evaluacion", status_code=202)
+async def enqueue_evaluacion():
+    """Enqueue evaluation recompute on the ARQ worker."""
+    from fastapi.responses import JSONResponse
+
+    from app.jobs.redis import get_redis_pool
+    from app.schemas import JobEnqueueResponse
+
+    redis = await get_redis_pool()
+    job = await redis.enqueue_job("run_evaluation")
+    if job is None:
+        raise HTTPException(status_code=409, detail="No se pudo encolar el job (id duplicado)")
+    return JSONResponse(
+        status_code=202,
+        content=JobEnqueueResponse(
+            job_id=job.job_id,
+            status="queued",
+            task="run_evaluation",
+        ).model_dump(),
     )
 
 
@@ -48,9 +92,18 @@ async def get_dashboard(categoria: str | None = None):
 
     processed = Path(settings.data_processed_path)
     total_tickets = 0
-    tickets_path = processed / "tickets_all.json"
-    if tickets_path.exists():
-        total_tickets = len(json.loads(tickets_path.read_text(encoding="utf-8")))
+    # Prefer lightweight manifests over loading tickets_all.json (~35MB+)
+    for name in ("embeddings_manifest.json", "tickets_train.json"):
+        path = processed / name
+        if name == "embeddings_manifest.json" and path.exists():
+            total_tickets = json.loads(path.read_text(encoding="utf-8")).get("total_embedded", 0)
+            break
+    if not total_tickets:
+        tickets_path = processed / "tickets_all.json"
+        if tickets_path.exists():
+            # Count records without building a huge Python list of dicts when possible
+            text = tickets_path.read_text(encoding="utf-8")
+            total_tickets = text.count('"ticket_id"')
 
     return {
         "cobertura_kedb": {

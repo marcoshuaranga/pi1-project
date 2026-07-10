@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4o-mini"
     batch_size: int = 100
     random_seed: int = 42
+    redis_host: str = "redis"
+    redis_port: int = 6379
+    redis_db: int = 0
 
     @property
     def chroma_url(self) -> str:

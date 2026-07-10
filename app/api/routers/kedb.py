@@ -3,10 +3,11 @@
 from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 
-from app.agents.kedb_generator.agent import KedbGeneratorAgent
 from app.agents.rag.agent import RAGAgent
-from app.schemas import KedbArticulo, KedbArticuloUpdate, KedbEstado
+from app.jobs.redis import get_redis_pool
+from app.schemas import JobEnqueueResponse, KedbArticulo, KedbArticuloUpdate, KedbEstado
 from app.storage.kedb_store.store import KedbStore
 
 router = APIRouter(prefix="/kedb", tags=["kedb"])
@@ -18,32 +19,29 @@ def get_store() -> KedbStore:
 
 
 @lru_cache
-def get_generator() -> KedbGeneratorAgent:
-    return KedbGeneratorAgent()
-
-
-@lru_cache
 def get_rag() -> RAGAgent:
     return RAGAgent()
 
 
-@router.post("/generate")
+@router.post("/generate", response_model=JobEnqueueResponse, status_code=202)
 async def generate_kedb(max_articles: int = 50, keyword: str | None = None):
-    """HU08a + HU08b — clustering + LLM synthesis."""
-    generator = get_generator()
-    if keyword:
-        articulo = generator.generate_from_cluster_keyword(keyword)
-        if not articulo:
-            articulo = generator.generate_demo_fixture()
-        return {"generated": 1, "articulos": [articulo.model_dump(mode="json")]}
-    articles = generator.generate_all(max_articles=max_articles)
-    if not articles:
-        demo = generator.generate_demo_fixture()
-        articles = [demo]
-    return {
-        "generated": len(articles),
-        "articulos": [a.model_dump(mode="json") for a in articles],
-    }
+    """HU08a + HU08b — enqueue clustering + LLM synthesis on the ARQ worker."""
+    redis = await get_redis_pool()
+    job = await redis.enqueue_job(
+        "generate_kedb",
+        max_articles=max_articles,
+        keyword=keyword,
+    )
+    if job is None:
+        raise HTTPException(status_code=409, detail="No se pudo encolar el job (id duplicado)")
+    return JSONResponse(
+        status_code=202,
+        content=JobEnqueueResponse(
+            job_id=job.job_id,
+            status="queued",
+            task="generate_kedb",
+        ).model_dump(),
+    )
 
 
 @router.get("/articulos", response_model=list[KedbArticulo])

@@ -6,13 +6,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.api.routers import kedb, metrics, tickets
+from app.api.routers import jobs, kedb, metrics, tickets
 from app.api.ws import pipeline as ws_pipeline
+from app.jobs.redis import close_redis_pool, get_redis_pool
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     yield
+    await close_redis_pool()
 
 
 def create_app() -> FastAPI:
@@ -32,11 +34,18 @@ def create_app() -> FastAPI:
     app.include_router(tickets.router)
     app.include_router(kedb.router)
     app.include_router(metrics.router)
+    app.include_router(jobs.router)
     app.include_router(ws_pipeline.router)
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "service": "pi1-rag-kedb"}
+        redis_ok = False
+        try:
+            pool = await get_redis_pool()
+            redis_ok = bool(await pool.ping())
+        except Exception:
+            redis_ok = False
+        return {"status": "ok", "service": "pi1-rag-kedb", "redis": redis_ok}
 
     return app
 
