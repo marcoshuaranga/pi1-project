@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { api, KedbArticulo } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { api, KedbArticulo, pollJob } from "../api";
 
 export default function ExpertPage() {
   const [pendientes, setPendientes] = useState<KedbArticulo[]>([]);
@@ -7,6 +7,9 @@ export default function ExpertPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
+  const [jobStatus, setJobStatus] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const pollAbort = useRef<AbortController | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -28,7 +31,45 @@ export default function ExpertPage() {
 
   useEffect(() => {
     load();
+    return () => pollAbort.current?.abort();
   }, []);
+
+  const handleGenerate = async () => {
+    setError("");
+    setMsg("");
+    setGenerating(true);
+    setJobStatus("Encolando generación KEDB…");
+    pollAbort.current?.abort();
+    pollAbort.current = new AbortController();
+    try {
+      const enqueued = await api.enqueueKedbGenerate(10);
+      setJobStatus(`Job ${enqueued.job_id} en cola — consultando cada 5s…`);
+      const done = await pollJob(enqueued.job_id, {
+        signal: pollAbort.current.signal,
+        onStatus: (job) => setJobStatus(`Job ${job.job_id}: ${job.status}`),
+      });
+      if (done.success === false) {
+        throw new Error(done.error || "La generación falló en el worker");
+      }
+      const generated =
+        done.result && typeof done.result === "object" && "generated" in done.result
+          ? Number((done.result as { generated: number }).generated)
+          : undefined;
+      setMsg(
+        generated != null
+          ? `Generación lista: ${generated} artículo(s).`
+          : "Generación KEDB completada."
+      );
+      setJobStatus("");
+      await load();
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setError(String(e));
+      setJobStatus("");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleApprove = async () => {
     if (!selected) return;
@@ -59,12 +100,36 @@ export default function ExpertPage() {
       <div className="navbar bg-secondary text-secondary-content rounded-lg mb-4 px-4 shadow">
         <span className="text-lg font-bold">Validación KEDB — Experto Técnico</span>
         <span className="ml-4 badge badge-warning">{pendientes.length} pendientes</span>
+        <div className="ml-auto">
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={handleGenerate}
+            disabled={generating}
+          >
+            {generating ? (
+              <>
+                <span className="loading loading-spinner loading-xs" />
+                Generando…
+              </>
+            ) : (
+              "Generar borradores (worker)"
+            )}
+          </button>
+        </div>
       </div>
+
+      {jobStatus && (
+        <div className="alert alert-info mb-4 text-sm">
+          <span>{jobStatus}</span>
+        </div>
+      )}
 
       {error && (
         <div className="alert alert-error mb-4 text-sm">
           <span>{error}</span>
-          <button className="btn btn-sm" onClick={load}>Reintentar</button>
+          <button className="btn btn-sm" onClick={load}>
+            Reintentar
+          </button>
         </div>
       )}
 
@@ -75,7 +140,8 @@ export default function ExpertPage() {
         </div>
       ) : pendientes.length === 0 && !error ? (
         <div className="alert alert-info">
-          No hay artículos pendientes. Encola POST /kedb/generate (worker ARQ) o /kedb/seed-demo para crear borradores.
+          No hay artículos pendientes. Usa &quot;Generar borradores&quot; (poll cada 5s) o{" "}
+          <code>POST /kedb/seed-demo</code>.
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -140,6 +206,10 @@ export default function ExpertPage() {
             </div>
           )}
         </div>
+      )}
+
+      {msg && pendientes.length === 0 && !selected && (
+        <p className="text-success text-sm mt-2">{msg}</p>
       )}
     </div>
   );
