@@ -1,9 +1,8 @@
-"""Seed demo KEDB fixture and golden set samples."""
+"""Seed demo KEDB fixture, golden set samples, and evaluation cache."""
 
 import json
 import sys
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 
 # Allow `python scripts/seed_demo.py` inside Docker (script dir is on sys.path, not /app)
@@ -11,41 +10,20 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.schemas import KedbArticulo, KedbEstado
-from app.storage.kedb_store.store import KedbStore, new_articulo_id
 from app.config import get_settings
+from app.fixtures.kyocera_demo import build_demo_articulo, load_kyocera_ticket_ids
+from app.storage.kedb_store.store import KedbStore
 
 
 def seed_demo_kedb():
     """Create Kyocera demo article without LLM/Chroma (DEMO.md Escena 2)."""
+    ticket_ids = load_kyocera_ticket_ids(refresh_fixture=True)
     store = KedbStore()
-    articulo = KedbArticulo(
-        articulo_id=new_articulo_id(),
-        titulo="Configuración de impresora Kyocera TaskAlfa 7003i",
-        categoria=(
-            "Equipos Informáticos > Equipo de impresión y escaneo > Impresora Multifuncional"
-        ),
-        sintoma=(
-            "El usuario no puede imprimir o requiere configurar la impresora "
-            "multifuncional Kyocera 7003 en su equipo."
-        ),
-        causa=(
-            "Impresora predeterminada no configurada correctamente, "
-            "o driver de la Kyocera 7003 no instalado."
-        ),
-        solucion=(
-            "1. Instalar/verificar el driver de la impresora Kyocera 7003.\n"
-            "2. Configurar la impresora como predeterminada.\n"
-            "3. Validar con hoja de prueba."
-        ),
-        tickets_fuente=["96044", "95984", "95645", "95439", "94922"],
-        fecha_generacion=datetime.now(timezone.utc),
-        estado=KedbEstado.BORRADOR,
-        aplicable_a="Impresoras Kyocera TaskAlfa 7003i en sedes MTC",
-    )
+    articulo = build_demo_articulo(ticket_ids=ticket_ids)
     store.create(articulo)
     print(f"Demo KEDB article created: {articulo.articulo_id}")
     print(f"  estado={articulo.estado.value}  titulo={articulo.titulo}")
+    print(f"  tickets_fuente={len(articulo.tickets_fuente)}")
     return articulo
 
 
@@ -75,6 +53,31 @@ def seed_golden_set_sample(n: int = 50):
     print(f"Golden set sample: {len(golden)} entries → {out}")
 
 
+def seed_evaluation(sample_size: int = 50):
+    """Precompute C9 metrics cache for demo backup figures."""
+    from app.evaluation.metrics import EvaluationFramework
+
+    settings = get_settings()
+    processed = Path(settings.data_processed_path)
+    eval_path = processed / "tickets_eval.json"
+    if not eval_path.exists():
+        print("No eval split found — skip evaluation (run pipeline first)")
+        return None
+
+    try:
+        result = EvaluationFramework().run_evaluation(sample_size=sample_size)
+        print(
+            f"Evaluation cache: f1={result.get('f1_macro')} "
+            f"recall@5={result.get('recall_at_5')} "
+            f"muestra={result.get('muestra')} → {processed / 'evaluation_results.json'}"
+        )
+        return result
+    except Exception as exc:
+        print(f"Evaluation skipped ({exc})")
+        return None
+
+
 if __name__ == "__main__":
     seed_demo_kedb()
     seed_golden_set_sample()
+    seed_evaluation()

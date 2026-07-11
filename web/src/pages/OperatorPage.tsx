@@ -1,7 +1,28 @@
 import { useState } from "react";
-import { api, TicketResponse } from "../api";
+import { api, processTicketViaWs, TicketResponse } from "../api";
 
-const STEPS = ["C3 Clasificación", "C4 Priorización", "C5 Recuperación RAG"];
+const STEPS = [
+  "C1 Anonimización",
+  "C3 Clasificación",
+  "C4 Priorización",
+  "C5 Recuperación RAG",
+];
+
+/** Map orchestrator agent names to step index (inicio/fin). */
+function stepIndexForAgent(agente?: string): number {
+  switch (agente) {
+    case "Orquestador":
+      return 0; // C1 runs under orquestador start / anonymize
+    case "Clasificador":
+      return 1;
+    case "Priorizador":
+      return 2;
+    case "RAG":
+      return 3;
+    default:
+      return -1;
+  }
+}
 
 export default function OperatorPage() {
   const [texto, setTexto] = useState(
@@ -14,22 +35,41 @@ export default function OperatorPage() {
   const [correccion, setCorreccion] = useState("");
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [nuevaSolucion, setNuevaSolucion] = useState("");
+  const [viaWs, setViaWs] = useState(false);
 
   const handleSubmit = async () => {
     setLoading(true);
     setError("");
     setResult(null);
     setActiveStep(0);
+    setViaWs(false);
+    setFeedbackMsg("");
     try {
-      for (let i = 0; i < STEPS.length; i++) {
-        setActiveStep(i);
-        await new Promise((r) => setTimeout(r, 400));
-      }
-      const res = await api.submitTicket(texto);
+      const res = await processTicketViaWs(texto, {
+        onEvent: (evento) => {
+          if (evento.tipo === "inicio" || evento.tipo === "fin") {
+            const idx = stepIndexForAgent(evento.agente);
+            if (idx >= 0) {
+              setActiveStep((prev) => Math.max(prev, idx));
+            }
+          }
+        },
+      });
+      setViaWs(true);
       setResult(res);
       setActiveStep(STEPS.length);
-    } catch (e) {
-      setError(String(e));
+    } catch {
+      try {
+        // Fallback REST so the demo does not fail if WS is unavailable
+        setActiveStep(0);
+        const res = await api.submitTicket(texto);
+        setResult(res);
+        setActiveStep(STEPS.length);
+        setViaWs(false);
+      } catch (e) {
+        setError(String(e));
+        setActiveStep(-1);
+      }
     } finally {
       setLoading(false);
     }
@@ -96,6 +136,11 @@ export default function OperatorPage() {
                 </li>
               ))}
             </ul>
+            {result && (
+              <p className="text-xs text-base-content/50 mt-2">
+                {viaWs ? "Eventos en vivo vía WebSocket" : "Procesado vía REST (fallback)"}
+              </p>
+            )}
           </div>
         </div>
       </div>

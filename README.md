@@ -27,11 +27,12 @@ docker compose up --build
 # 5. Ejecutar pipeline de datos (Fase 1)
 docker compose --profile pipeline run --rm pipeline full
 
-# 6. Sembrar artículo demo Kyocera (elige una opción)
+# 6. Sembrar artículo demo Kyocera + métricas de respaldo
 curl -X POST http://localhost:8000/kedb/seed-demo
-# o: docker compose exec -e PYTHONPATH=/app api python /app/scripts/seed_demo.py
+# o: docker compose exec api python /app/scripts/seed_demo.py
 ```
 
+Guía operativa completa (go/no-go, escenas, HU14): [`docs/DEMO_RUNBOOK.md`](docs/DEMO_RUNBOOK.md).
 ## URLs
 
 | Servicio | URL |
@@ -57,11 +58,13 @@ docker compose --profile pipeline run --rm pipeline embed
 docker compose --profile pipeline run --rm pipeline full
 ```
 
-## Demo (DEMO.md)
+## Demo
+
+Checklist operativa: [`docs/DEMO_RUNBOOK.md`](docs/DEMO_RUNBOOK.md). Guion narrativo: [`DEMO.md`](DEMO.md).
 
 1. **Escena 1:** Pegar ticket Kyocera en pantalla Operador
-2. **Escena 2:** Mostrar artículo KEDB pre-generado en pantalla Experto
-3. **Escena 3:** Aprobar artículo con un clic
+2. **Escena 2:** Mostrar artículo KEDB pre-generado en pantalla Experto (~142 tickets fuente)
+3. **Escena 3:** Aprobar artículo → reenviar ticket similar y señalar hit KEDB
 
 ## Arquitectura
 

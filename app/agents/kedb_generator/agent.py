@@ -144,27 +144,8 @@ Responde SOLO con JSON válido."""
 
     def generate_demo_fixture(self) -> KedbArticulo:
         """Pre-built Kyocera article for demo (fallback without LLM)."""
-        articulo = KedbArticulo(
-            articulo_id=new_articulo_id(),
-            titulo="Configuración de impresora Kyocera TaskAlfa 7003i",
-            categoria="Equipos Informáticos > Equipo de impresión y escaneo > Impresora Multifuncional",
-            sintoma=(
-                "El usuario no puede imprimir o requiere configurar la impresora "
-                "multifuncional Kyocera 7003 en su equipo."
-            ),
-            causa=(
-                "Impresora predeterminada no configurada correctamente, "
-                "o driver de la Kyocera 7003 no instalado."
-            ),
-            solucion=(
-                "1. Instalar/verificar el driver de la impresora Kyocera 7003.\n"
-                "2. Configurar la impresora como predeterminada.\n"
-                "3. Validar con hoja de prueba."
-            ),
-            tickets_fuente=["96044", "95984", "95645", "95439", "94922"],
-            fecha_generacion=datetime.now(timezone.utc),
-            estado=KedbEstado.BORRADOR,
-            aplicable_a="Impresoras Kyocera TaskAlfa 7003i en sedes MTC",
-        )
+        from app.fixtures.kyocera_demo import build_demo_articulo, load_kyocera_ticket_ids
+
+        articulo = build_demo_articulo(ticket_ids=load_kyocera_ticket_ids())
         self.store.create(articulo)
         return articulo

@@ -106,34 +106,10 @@ async def pendientes():
 @router.post("/seed-demo", response_model=KedbArticulo)
 async def seed_demo():
     """Create Kyocera demo article without LLM/Chroma (DEMO.md Escena 2)."""
-    from datetime import datetime, timezone
+    from app.fixtures.kyocera_demo import build_demo_articulo, load_kyocera_ticket_ids
 
-    from app.storage.kedb_store.store import new_articulo_id
-
-    articulo = KedbArticulo(
-        articulo_id=new_articulo_id(),
-        titulo="Configuración de impresora Kyocera TaskAlfa 7003i",
-        categoria=(
-            "Equipos Informáticos > Equipo de impresión y escaneo > Impresora Multifuncional"
-        ),
-        sintoma=(
-            "El usuario no puede imprimir o requiere configurar la impresora "
-            "multifuncional Kyocera 7003 en su equipo."
-        ),
-        causa=(
-            "Impresora predeterminada no configurada correctamente, "
-            "o driver de la Kyocera 7003 no instalado."
-        ),
-        solucion=(
-            "1. Instalar/verificar el driver de la impresora Kyocera 7003.\n"
-            "2. Configurar la impresora como predeterminada.\n"
-            "3. Validar con hoja de prueba."
-        ),
-        tickets_fuente=["96044", "95984", "95645", "95439", "94922"],
-        fecha_generacion=datetime.now(timezone.utc),
-        estado=KedbEstado.BORRADOR,
-        aplicable_a="Impresoras Kyocera TaskAlfa 7003i en sedes MTC",
-    )
+    ticket_ids = load_kyocera_ticket_ids(refresh_fixture=True)
+    articulo = build_demo_articulo(ticket_ids=ticket_ids)
     return get_store().create(articulo)
 
 

@@ -14,6 +14,133 @@
 
 ---
 
+## Flujos y casos de uso
+
+### Secuencia de la sesión (prework → 3 escenas)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Op as Operador
+  actor Exp as Experto
+  participant UI as C8 UI
+  participant API as FastAPI
+  participant C7 as C7 Orquestador
+  participant C3 as C3 Clasificador
+  participant C4 as C4 Priorizador
+  participant C5 as C5 RAG
+  participant KEDB as KEDB Store
+  participant Chroma as ChromaDB
+
+  Note over Op,Chroma: PREWORK (antes de la sesión)
+  API->>KEDB: seed Kyocera (~142 tickets fuente)
+  API->>API: evaluación C9 → evaluation_results.json
+
+  rect rgb(230,245,255)
+    Note over Op,Chroma: ESCENA 1 — Asistencia en vivo
+    Op->>UI: Pega ticket Kyocera
+    UI->>API: WS /ws/pipeline/{id} (fallback REST)
+    API->>C7: process_ticket
+    C7->>C3: clasificar
+    C3-->>UI: evento inicio/fin (step C3)
+    C7->>C4: priorizar
+    C4-->>UI: evento (step C4)
+    C7->>C5: Top-5
+    C5->>Chroma: similitud tickets + KEDB
+    C5-->>UI: categoría + prioridad + soluciones
+    UI-->>Op: Resultado en segundos
+  end
+
+  rect rgb(255,248,230)
+    Note over Exp,KEDB: ESCENA 2 — Conocimiento (prework mostrado)
+    Exp->>UI: /experto (bandeja HU14)
+    UI->>API: GET /kedb/pendientes
+    API->>KEDB: borradores
+    UI-->>Exp: Artículo + N tickets fuente
+  end
+
+  rect rgb(230,255,235)
+    Note over Exp,Chroma: ESCENA 3 — Cierre del ciclo
+    Exp->>UI: Aprobar (HU10)
+    UI->>API: PATCH estado=validado
+    API->>KEDB: actualizar
+    API->>Chroma: indexar artículo KEDB
+    Op->>UI: Ticket similar otra vez
+    UI->>C5: recuperar
+    C5->>Chroma: hit tipo kedb
+    UI-->>Op: Top-5 incluye artículo validado
+  end
+```
+
+### Quién dispara qué
+
+```mermaid
+flowchart TB
+  subgraph actores [Actores]
+    Op[Operador Mesa]
+    Exp[Experto técnico]
+    Prep[Prework / ingeniero]
+  end
+
+  subgraph uc [Casos de uso demo MVP]
+    UC1[UC1 Clasificar + priorizar + Top-5]
+    UC2[UC2 Revisar artículo con trazabilidad]
+    UC3[UC3 Aprobar y publicar a RAG]
+    UC4[UC4 Consultar métricas de respaldo]
+  end
+
+  subgraph sistema [Sistema]
+    Pipe[Pipeline C1+C2]
+    Seed[Seed fixture Kyocera]
+    Orq[Orquestador LangGraph]
+    Store[(KEDB SQLite)]
+    Vec[(ChromaDB)]
+    Eval[C9 F1 / Recall@5]
+  end
+
+  Prep -->|pipeline full| Pipe
+  Prep -->|seed_demo| Seed
+  Seed --> Store
+  Prep -->|evaluación| Eval
+
+  Op -->|Escena 1| UC1
+  UC1 --> Orq
+  Orq --> Vec
+
+  Exp -->|Escena 2 bandeja| UC2
+  UC2 --> Store
+
+  Exp -->|Escena 3 clic| UC3
+  UC3 --> Store
+  UC3 -->|indexar| Vec
+
+  Op -->|reenvío post-aprobación| UC1
+  UC1 -->|hit kedb| Vec
+
+  Prep -.->|si preguntan| UC4
+  UC4 --> Eval
+```
+
+### Ciclo cerrado asistencia ↔ KEDB
+
+```mermaid
+flowchart LR
+  T[Ticket nuevo] --> A[Asistencia<br/>C3+C4+C5]
+  A --> R[Resolución del operador]
+  R --> G[Generación KEDB<br/>prework / C6]
+  G --> V[Validación experta<br/>HU10]
+  V --> K[Artículo validado]
+  K -->|retroalimenta| A
+```
+
+- **Escena 1** = valor inmediato para el operador.
+- **Escena 2** = evidencia de conocimiento generado (no se genera en vivo).
+- **Escena 3** = el clic que cierra el ciclo: lo aprobado vuelve a RAG.
+
+Checklist operativa: [`docs/DEMO_RUNBOOK.md`](docs/DEMO_RUNBOOK.md).
+
+---
+
 ## Escena 1 — Asistencia en vivo
 
 El operador escribe un ticket nuevo, en sus propias palabras, sin copiar literalmente ninguno de los 142 títulos históricos:

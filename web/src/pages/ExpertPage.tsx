@@ -186,7 +186,12 @@ export default function ExpertPage() {
                 </section>
                 <section className="mt-3">
                   <h4 className="font-semibold text-sm">Trazabilidad N:1 (HU09)</h4>
-                  <p className="text-xs font-mono text-base-content/70">
+                  <p className="text-sm mt-1">
+                    <span className="badge badge-primary badge-lg">
+                      {selected.tickets_fuente.length} tickets fuente
+                    </span>
+                  </p>
+                  <p className="text-xs font-mono text-base-content/70 mt-2">
                     {selected.tickets_fuente.slice(0, 20).join(", ")}
                     {selected.tickets_fuente.length > 20 &&
                       ` ... (+${selected.tickets_fuente.length - 20} más)`}

@@ -71,6 +71,7 @@ services:
     volumes:
       - ./data/processed:/data/processed
       - ./data/raw:/data/raw
+      - ./data/fixtures:/data/fixtures
       - kedb_data:/data/kedb
       - ./data/kedb/articles:/data/kedb/articles
     depends_on:
@@ -120,6 +121,7 @@ services:
     volumes:
       - ./data/processed:/data/processed
       - ./data/raw:/data/raw
+      - ./data/fixtures:/data/fixtures
       - kedb_data:/data/kedb
       - ./data/kedb/articles:/data/kedb/articles
     depends_on:
@@ -187,6 +189,7 @@ services:
     volumes:
       - ./data/processed:/data/processed
       - ./data/raw:/data/raw
+      - ./data/fixtures:/data/fixtures
       - kedb_data:/data/kedb
       - ./data/kedb/articles:/data/kedb/articles
     depends_on:

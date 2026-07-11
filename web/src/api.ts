@@ -58,6 +58,104 @@ export interface JobEnqueue {
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const JOB_POLL_INTERVAL_MS = 5_000;
+const WS_PROCESS_TIMEOUT_MS = 45_000;
+
+function wsBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_URL as string | undefined;
+  if (configured && /^https?:\/\//i.test(configured)) {
+    return configured.replace(/^http/i, "ws");
+  }
+  // Same-origin /api (Docker nginx or Vite proxy)
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const prefix = configured?.startsWith("/") ? configured.replace(/\/$/, "") : "/api";
+  return `${proto}//${window.location.host}${prefix}`;
+}
+
+export interface PipelineWsEvent {
+  evento_id?: string;
+  timestamp?: string;
+  agente?: string;
+  ticket_id?: string;
+  tipo?: string;
+  entrada?: Record<string, unknown>;
+  salida?: Record<string, unknown>;
+}
+
+/** Process ticket via WebSocket pipeline events; rejects on WS failure. */
+export function processTicketViaWs(
+  texto: string,
+  options?: {
+    onEvent?: (evento: PipelineWsEvent) => void;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+  }
+): Promise<TicketResponse> {
+  const ticketId = `T-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  const url = `${wsBaseUrl()}/ws/pipeline/${ticketId}`;
+  const timeoutMs = options?.timeoutMs ?? WS_PROCESS_TIMEOUT_MS;
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(url);
+    } catch (e) {
+      reject(e instanceof Error ? e : new Error(String(e)));
+      return;
+    }
+
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      options?.signal?.removeEventListener("abort", onAbort);
+      try {
+        ws.close();
+      } catch {
+        /* ignore */
+      }
+      fn();
+    };
+
+    const timer = setTimeout(() => {
+      finish(() => reject(new Error("WebSocket del pipeline agotó el tiempo de espera.")));
+    }, timeoutMs);
+
+    const onAbort = () => {
+      finish(() => reject(new DOMException("Procesamiento cancelado", "AbortError")));
+    };
+    options?.signal?.addEventListener("abort", onAbort, { once: true });
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ action: "process", texto }));
+    };
+
+    ws.onerror = () => {
+      finish(() => reject(new Error("No se pudo conectar al WebSocket del pipeline.")));
+    };
+
+    ws.onclose = () => {
+      if (!settled) {
+        finish(() => reject(new Error("WebSocket cerrado antes de recibir el resultado.")));
+      }
+    };
+
+    ws.onmessage = (msg) => {
+      try {
+        const data = JSON.parse(msg.data as string);
+        if (data?.type === "result" && data.data) {
+          finish(() => resolve(data.data as TicketResponse));
+          return;
+        }
+        if (data?.agente && data?.tipo) {
+          options?.onEvent?.(data as PipelineWsEvent);
+        }
+      } catch (e) {
+        finish(() => reject(e instanceof Error ? e : new Error(String(e))));
+      }
+    };
+  });
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();

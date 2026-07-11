@@ -16,6 +16,7 @@ COPY pyproject.toml ./
 COPY app ./app
 COPY scripts ./scripts
 COPY tests ./tests
+COPY data/fixtures ./data/fixtures
 
 RUN pip install --upgrade pip && pip install -e ".[dev]"
 
