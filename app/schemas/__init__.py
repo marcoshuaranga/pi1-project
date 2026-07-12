@@ -80,6 +80,7 @@ class KedbArticuloUpdate(BaseModel):
     sintoma: str | None = None
     causa: str | None = None
     solucion: str | None = None
+    aplicable_a: str | None = None
     estado: KedbEstado | None = None
     calidad_experta: float | None = None
 

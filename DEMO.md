@@ -1,241 +1,232 @@
 # Guion de Demo — Plataforma Multi-Agente RAG + KEDB
 
-> Complementa `PRD.md` §2.4 y §10.1-10.2. Este documento detalla, escena por escena, qué se muestra al patrocinador (OITSI-MTC), con datos reales curados de `artifacts/Tickets_Consolidados.xlsx` (categoría "Impresora Multifuncional", la única de las 9 categorías top con aptitud KEDB **Alta**; clúster real de 142 tickets "Configuración de impresora Kyocera 7003"). Los nombres de solicitante/técnico del archivo original **no se usan** en ningún ejemplo, en línea con el requisito de anonimización (C1) del proyecto.
+> Uso: leer en voz alta o como teleprompter. Checklist técnica: [`docs/DEMO_RUNBOOK.md`](docs/DEMO_RUNBOOK.md).  
+> Preguntas difíciles (negocio, stack, validación): [`docs/DEMO_QA.md`](docs/DEMO_QA.md).  
+> Datos: categoría **Impresora Multifuncional** (aptitud KEDB Alta), clúster Kyocera ~142 tickets.  
+> Duración objetivo: **12–15 min** (+ 5 min preguntas).
 
 ---
 
-## Resumen de la ruta
+## Antes de abrir la sala (30 s)
 
-| Escena | Qué ve el cliente | En vivo / prework |
+| Check | Criterio |
+| :--- | :--- |
+| http://localhost:3000 | Operador carga |
+| http://localhost:3000/experto | Exactamente **1** borrador Kyocera (TaskAlfa 7003i) |
+| Badge trazabilidad | ~142 tickets fuente |
+| No tocar | «Generar borradores» / `POST /kedb/generate` |
+
+Si falla el pendiente: `curl -X POST http://localhost:8000/kedb/seed-demo`
+
+---
+
+## Apertura (1 min)
+
+**Decir:**
+
+> Hoy vamos a ver el ciclo cerrado que ataca la recurrencia de la Mesa: el operador pega un ticket y en segundos recibe categoría, prioridad y soluciones ya aplicadas; el sistema ya consolidó ese conocimiento en un artículo KEDB; y el experto lo valida con un clic para que vuelva a estar disponible en la siguiente búsqueda.
+
+**Mostrar:** pantalla Operador abierta, campo de ticket vacío.
+
+---
+
+## Escena 1 — Asistencia en vivo (4–5 min)
+
+### Caso principal (obligatorio)
+
+**Pegar exactamente:**
+
+```
+Impresora Kyocera 7003 no imprime, necesito que la configuren de nuevo
+```
+
+**Clic:** Enviar ticket.
+
+**Mientras corre el pipeline, decir:**
+
+> El texto es coloquial, como lo escribiría un usuario. No es un título histórico copiado: es una variante nueva. El orquestador clasifica, prioriza y busca soluciones similares en el histórico.
+
+**Señalar en pantalla (en este orden):**
+
+1. Steps del pipeline (Clasificador → Priorizador → RAG)
+2. **Categoría** esperada: Impresora Multifuncional (o la ruta completa `Equipos Informáticos > … > Impresora Multifuncional`)
+3. **Confianza** alta (típicamente >80 %)
+4. **Prioridad** Media (sin señales de urgencia institucional)
+5. **Top-5** con similitud %; al menos una solución del tipo:
+   - *«Se configuró impresora predeterminada y se validó con impresión de hoja de prueba…»*
+   - o instalación de driver Kyocera
+
+**Decir (argumento central):**
+
+> Este patrón se repitió más de cien veces en el histórico. El operador ya no tiene que reinvestigar en GLPI: en segundos tiene la solución que ya funcionó.
+
+### Casos de respaldo (si piden variedad o falla Kyocera)
+
+Usar **uno** solo; no saturar.
+
+| # | Texto a pegar | Dominio esperado | Para qué sirve |
+| :--- | :--- | :--- | :--- |
+| B1 | `Sin acceso a escritorio remoto` | VPN / GlobalProtect | Otro dominio del top-9 |
+| B2 | `Problemas de conexión remota vía VPN` | VPN | Variante del mismo dominio |
+| B3 | `La Kyocera TaskAlfa no imprime hojas de prueba desde mi PC` | Impresora Multifuncional | Refuerzo semántico (no literal) |
+
+**No pegar en vivo** (riesgo PII o match trivial):
+
+- Títulos literales del Excel crudo sin revisar
+- Nombres, correos, DNI o IPs inventados “para probar anonimización” frente al cliente
+
+---
+
+## Escena 2 — Conocimiento generado (3 min)
+
+**Navegar a:** http://localhost:3000/experto
+
+**Decir:**
+
+> Esto no se generó ahora. Antes de la sesión el sistema agrupó ~142 tickets del mismo problema Kyocera y sintetizó un borrador. La bandeja de pendientes es la alerta al experto: hay conocimiento esperando validación humana.
+
+**Abrir** el artículo único pendiente.
+
+**Señalar:**
+
+| Campo | Qué decir |
+| :--- | :--- |
+| Título | Configuración de impresora Kyocera TaskAlfa 7003i |
+| Síntoma / causa / solución | El conocimiento consolidado (pasos: driver → predeterminada → hoja de prueba) |
+| Tickets fuente (HU09) | Badge ~142 — trazabilidad N:1; el artículo no es inventado |
+| Estado | `borrador` — aún no publicado a todos los operadores |
+
+**Opcional (30 s, si hay tiempo):** Editar una palabra del título → Guardar → mostrar que sigue en borrador.
+
+**Decir (argumento central):**
+
+> El conocimiento se escribió a partir de casos reales. El experto no redacta desde cero: revisa y decide.
+
+---
+
+## Escena 3 — Cierre del ciclo (3–4 min)
+
+### Paso A — Aprobar
+
+**Clic:** Aprobar.
+
+**Decir:**
+
+> Con este clic el artículo pasa a validado y se indexa en el buscador de soluciones. A partir de ahora alimenta al mismo Agente RAG que vieron en la Escena 1.
+
+### Paso B — Probar que volvió a RAG (obligatorio para cerrar el ciclo)
+
+Volver a **Operador**. Pegar una variante distinta del caso Kyocera (no la misma frase exacta de la Escena 1):
+
+```
+Necesito configurar la impresora Kyocera 7003, no sale impresión de prueba
+```
+
+**Señalar en el Top-5:** un hit con tipo **`kedb`** (artículo validado), no solo tickets históricos.
+
+**Decir (cierre):**
+
+> Ese es el ciclo cerrado: asistencia → conocimiento consolidado → validación experta → de vuelta a la siguiente atención. Cada resolución puede acelerar la siguiente.
+
+---
+
+## Escenarios de reserva (si preguntan «¿y con otro tipo de ticket?»)
+
+No forman parte del camino dorado. Úsalos **solo si te retan** o quieren ver otro dominio.  
+Máximo **1–2** en la sesión. Pegar → Enviar → señalar categoría + Top-5 → volver al ciclo Kyocera.
+
+### A. Variedad de dominio (top-9)
+
+| ID | Pregunta del cliente | Texto a pegar | Categoría esperada | Qué señalar |
+| :--- | :--- | :--- | :--- | :--- |
+| R1 | ¿Solo funciona con impresoras? | `Sin acceso a escritorio remoto` | VPN > No accede (GlobalProtect) | Otro dominio; solución típica: credenciales / cliente VPN |
+| R2 | ¿VPN también? | `Problemas de conexión remota vía VPN` | VPN | Variante; mismo mensaje que R1 |
+| R3 | ¿Correo? | `No puedo enviar ni recibir correos, me sale que el buzón está lleno` | Correo > Buzón lleno | Aptitud Media; soluciones de limpieza/archivo de buzón |
+| R4 | ¿Equipos / PC? | `La PC no enciende, se queda en pantalla negra al arrancar` | Equipos de Escritorio > CPU | Hardware; Top-5 puede ser más disperso que Kyocera |
+| R5 | ¿Aplicaciones internas? | `No puedo ingresar al STD, me sale error al iniciar sesión` | Aplicaciones MTC > STD | Alto volumen en el histórico; clasificador debería acertar |
+| R6 | ¿Cuentas de usuario? | `Necesito el alta de una cuenta de usuario nueva para un personal` | Cuenta de usuario > Alta | **Advertencia:** aptitud KEDB Baja (pocas soluciones ricas); el Top-5 puede ser débil — úsalo solo para clasificación, no para “wow” de RAG |
+
+### B. Variantes Kyocera (si piden otra redacción del mismo caso)
+
+| ID | Texto a pegar | Para qué |
 | :--- | :--- | :--- |
-| 1. Asistencia | Ticket nuevo → categoría + prioridad + Top-5 soluciones en segundos | En vivo |
-| 2. Conocimiento generado | Artículo KEDB con trazabilidad a los tickets fuente | Prework, mostrado como resultado |
-| 3. Cierre del ciclo | El experto aprueba el artículo con un clic | En vivo |
+| K1 | `Impresora Kyocera 7003 no imprime, necesito que la configuren de nuevo` | Principal Escena 1 |
+| K2 | `Necesito configurar la impresora Kyocera 7003, no sale impresión de prueba` | Escena 3 (hit `kedb`) |
+| K3 | `La Kyocera TaskAlfa no imprime hojas de prueba desde mi PC` | Misma familia, otra phrasing |
+| K4 | `No imprime en la multifuncional Kyocera, faltaría instalar el driver` | Empuja recuperación hacia soluciones de driver |
+
+### C. Preguntas de producto / proceso (sin pegar ticket)
+
+| Si preguntan… | Respuesta corta |
+| :--- | :--- |
+| ¿Y si la categoría está mal? | En el MVP el operador ve la sugerencia + confianza. Corregir y guardar feedback es Fase 2 (HU03); hoy la decisión final sigue siendo del operador. |
+| ¿Por qué prioridad Media? | El score combina impacto, recurrencia, SLA, criticidad y tipo. Este caso no dispara urgencia institucional → Media, coherente con el histórico. |
+| ¿El sistema cierra el ticket solo? | No. Solo recomienda. Cierre y resolución los hace el operador (regla de negocio). |
+| ¿Por qué no generan el artículo ahora? | Clustering + síntesis LLM se corren de antemano sobre un clúster curado (~142 Kyocera) para no depender de una corrida improvisada. |
+| ¿Y si el experto rechaza? | Pasa a `obsoleto`; no se indexa en RAG. Pueden mostrar Rechazar solo si ya aprobaron en un ensayo previo y re-sembraron. |
+| ¿Anonimizan? | Sí, C1 (regex + NER). En demo usamos textos sin PII. El Excel crudo no se abre frente al cliente. |
+| ¿Conecta con GLPI en vivo? | No en este MVP: trabaja sobre export histórico. Integración productiva queda fuera de alcance. |
+| ¿Cuántas categorías cubre? | Las 9 de mayor volumen (~50% del total). El resto está fuera del MVP. |
+| ¿Sirve para cuentas de usuario igual de bien? | Clasifica; recuperar soluciones es más débil porque esa categoría tiene pocas soluciones documentadas (aptitud Baja). Por eso la demo principal es Impresora Multifuncional (Alta). |
+
+### D. Si algo falla en vivo
+
+| Síntoma | Qué hacer / decir |
+| :--- | :--- |
+| Top-5 vacío o irrelevante | Pegar **K3** o **R1**. Si sigue mal: “el índice vectorial necesita re-pipeline; el flujo de UI ya lo vieron”. |
+| Categoría incorrecta | Mostrar confianza; decir que el operador decide. Opcional: probar **R5** (STD) o **R3** (buzón), suelen ser claros. |
+| No hay pendiente en Experto | Fuera de cámara: `POST /kedb/seed-demo`. Decir: “reponemos el borrador de demo”. |
+| WS no anima steps | La UI cae a REST; el resultado llega igual — no parar la demo. |
+| Piden métricas | Ver sección siguiente; no abrir Dashboard Fase 2. |
 
 ---
 
-## Flujos y casos de uso
+## Si preguntan por números (solo bajo demanda)
 
-### Secuencia de la sesión (prework → 3 escenas)
+No proyectar métricas salvo que pregunten.
 
-```mermaid
-sequenceDiagram
-  autonumber
-  actor Op as Operador
-  actor Exp as Experto
-  participant UI as C8 UI
-  participant API as FastAPI
-  participant C7 as C7 Orquestador
-  participant C3 as C3 Clasificador
-  participant C4 as C4 Priorizador
-  participant C5 as C5 RAG
-  participant KEDB as KEDB Store
-  participant Chroma as ChromaDB
-
-  Note over Op,Chroma: PREWORK (antes de la sesión)
-  API->>KEDB: seed Kyocera (~142 tickets fuente)
-  API->>API: evaluación C9 → evaluation_results.json
-
-  rect rgb(230,245,255)
-    Note over Op,Chroma: ESCENA 1 — Asistencia en vivo
-    Op->>UI: Pega ticket Kyocera
-    UI->>API: WS /ws/pipeline/{id} (fallback REST)
-    API->>C7: process_ticket
-    C7->>C3: clasificar
-    C3-->>UI: evento inicio/fin (step C3)
-    C7->>C4: priorizar
-    C4-->>UI: evento (step C4)
-    C7->>C5: Top-5
-    C5->>Chroma: similitud tickets + KEDB
-    C5-->>UI: categoría + prioridad + soluciones
-    UI-->>Op: Resultado en segundos
-  end
-
-  rect rgb(255,248,230)
-    Note over Exp,KEDB: ESCENA 2 — Conocimiento (prework mostrado)
-    Exp->>UI: /experto (bandeja HU14)
-    UI->>API: GET /kedb/pendientes
-    API->>KEDB: borradores
-    UI-->>Exp: Artículo + N tickets fuente
-  end
-
-  rect rgb(230,255,235)
-    Note over Exp,Chroma: ESCENA 3 — Cierre del ciclo
-    Exp->>UI: Aprobar (HU10)
-    UI->>API: PATCH estado=validado
-    API->>KEDB: actualizar
-    API->>Chroma: indexar artículo KEDB
-    Op->>UI: Ticket similar otra vez
-    UI->>C5: recuperar
-    C5->>Chroma: hit tipo kedb
-    UI-->>Op: Top-5 incluye artículo validado
-  end
-```
-
-### Quién dispara qué
-
-```mermaid
-flowchart TB
-  subgraph actores [Actores]
-    Op[Operador Mesa]
-    Exp[Experto técnico]
-    Prep[Prework / ingeniero]
-  end
-
-  subgraph uc [Casos de uso demo MVP]
-    UC1[UC1 Clasificar + priorizar + Top-5]
-    UC2[UC2 Revisar artículo con trazabilidad]
-    UC3[UC3 Aprobar y publicar a RAG]
-    UC4[UC4 Consultar métricas de respaldo]
-  end
-
-  subgraph sistema [Sistema]
-    Pipe[Pipeline C1+C2]
-    Seed[Seed fixture Kyocera]
-    Orq[Orquestador LangGraph]
-    Store[(KEDB SQLite)]
-    Vec[(ChromaDB)]
-    Eval[C9 F1 / Recall@5]
-  end
-
-  Prep -->|pipeline full| Pipe
-  Prep -->|seed_demo| Seed
-  Seed --> Store
-  Prep -->|evaluación| Eval
-
-  Op -->|Escena 1| UC1
-  UC1 --> Orq
-  Orq --> Vec
-
-  Exp -->|Escena 2 bandeja| UC2
-  UC2 --> Store
-
-  Exp -->|Escena 3 clic| UC3
-  UC3 --> Store
-  UC3 -->|indexar| Vec
-
-  Op -->|reenvío post-aprobación| UC1
-  UC1 -->|hit kedb| Vec
-
-  Prep -.->|si preguntan| UC4
-  UC4 --> Eval
-```
-
-### Ciclo cerrado asistencia ↔ KEDB
-
-```mermaid
-flowchart LR
-  T[Ticket nuevo] --> A[Asistencia<br/>C3+C4+C5]
-  A --> R[Resolución del operador]
-  R --> G[Generación KEDB<br/>prework / C6]
-  G --> V[Validación experta<br/>HU10]
-  V --> K[Artículo validado]
-  K -->|retroalimenta| A
-```
-
-- **Escena 1** = valor inmediato para el operador.
-- **Escena 2** = evidencia de conocimiento generado (no se genera en vivo).
-- **Escena 3** = el clic que cierra el ciclo: lo aprobado vuelve a RAG.
-
-Checklist operativa: [`docs/DEMO_RUNBOOK.md`](docs/DEMO_RUNBOOK.md).
+| Pregunta típica | Respuesta corta |
+| :--- | :--- |
+| ¿Qué tan bien clasifica? | F1 macro sobre muestra de evaluación; meta del PRD ≥ 0.80. Cifra actual: `GET /metrics/evaluacion`. |
+| ¿Recall@5 bajo? | En esta build es métrica simplificada (hit por mismo `ticket_id`). La demo se juzga por relevancia de las soluciones mostradas, no por esa cifra sola. |
+| ¿Cuánto tarda? | Meta ≤ 30 s; en práctica suele ser pocos segundos. |
+| ¿Por qué no generan KEDB en vivo? | Clustering + LLM se corren de antemano sobre un clúster curado para no depender de una corrida improvisada frente a ustedes. |
 
 ---
 
-## Escena 1 — Asistencia en vivo
+## Orden de los ejemplos (cheat sheet)
 
-El operador escribe un ticket nuevo, en sus propias palabras, sin copiar literalmente ninguno de los 142 títulos históricos:
+**Camino dorado (siempre):**
 
-> *"Impresora Kyocera 7003 no imprime, necesito que la configuren de nuevo"*
+| Momento | Texto | Pantalla |
+| :--- | :--- | :--- |
+| Escena 1 | `Impresora Kyocera 7003 no imprime, necesito que la configuren de nuevo` | Operador |
+| Escena 2 | *(ninguno — abrir artículo pendiente)* | Experto |
+| Escena 3A | *(clic Aprobar)* | Experto |
+| Escena 3B | `Necesito configurar la impresora Kyocera 7003, no sale impresión de prueba` | Operador |
 
-Esto entra por `POST /tickets` y atraviesa el pipeline:
+**Si retan (elige 1):**
 
-1. **C1 (Anonimización):** revisa el texto en busca de PII (nombres, correos, IPs). En este caso no hay nada que reemplazar — pasa limpio.
-2. **C7 (Orquestador) → C3 (Clasificador):** el texto menciona "impresora" y "Kyocera 7003", vocabulario que aparece en miles de tickets de la categoría `Equipos Informáticos > Equipo de impresión y escaneo > Impresora Multifuncional`. El clasificador debería asignar esa categoría con confianza alta (p. ej. 90%+), precisamente porque es una de las 9 categorías de entrenamiento y tiene el mayor volumen de ejemplos "ricos" (52.8% con solución ≥80 caracteres) para aprender el patrón.
-3. **C4 (Priorizador):** como es un "no imprime" sin señales de urgencia institucional (no es un caso de alto impacto ciudadano ni SLA crítico), el score sale bajo-medio → prioridad **Media**, coherente con que el histórico real muestra que casi todos los tickets de esta categoría fueron priorizados como Media.
-4. **C5 (Agente RAG):** busca por similitud semántica en ChromaDB y encuentra, entre los vecinos más cercanos, varios de los 142 tickets "Configuración de impresora Kyocera 7003" — con score de similitud muy alto (0.90+), porque el vocabulario y el contexto coinciden casi textualmente.
-
-Lo que ve el operador en pantalla (`POST /tickets` responde en ~2-5 s):
-
-```json
-{
-  "categoria": "Equipos Informáticos > Impresora Multifuncional",
-  "confianza": 0.93,
-  "prioridad": "Media",
-  "soluciones": [
-    { "ticket_id": "96044", "score": 0.94,
-      "solucion": "Se configuró impresora predeterminada y se validó con impresión de hoja de prueba correctamente. Atendido" },
-    { "ticket_id": "95984", "score": 0.92, "solucion": "..." },
-    { "ticket_id": "57910", "score": 0.88,
-      "solucion": "Se apoyó con la instalación del driver de la impresora en la PC del MTC y ya puede imprimir con normalidad" }
-  ]
-}
-```
-
-**Argumento central:** el operador no tuvo que buscar en GLPI, preguntar a un compañero, ni reinvestigar — en segundos tiene la solución que ya funcionó 125 veces antes.
-
-**Tickets de respaldo para variedad de dominio** (si se quiere mostrar más de una categoría en vivo): *"Sin acceso a escritorio remoto"* (VPN, ticket real 66487, solución: configuración de credenciales en GlobalProtect) o *"Problemas de conexión remota vía VPN"* (ticket 95813).
+| Prioridad | Texto | Dominio |
+| :--- | :--- | :--- |
+| 1º | `Sin acceso a escritorio remoto` | VPN |
+| 2º | `No puedo enviar ni recibir correos, me sale que el buzón está lleno` | Correo |
+| 3º | `No puedo ingresar al STD, me sale error al iniciar sesión` | STD |
 
 ---
 
-## Escena 2 — El artículo KEDB (mostrado como resultado, no generado en vivo)
+## Qué no hacer en vivo
 
-Antes de la demo, se corre `POST /kedb/generate` sobre el clúster de 142 tickets (HDBSCAN los agrupa por similitud de embeddings; el LLM sintetiza). El resultado, ya aprobado y listo para mostrar, tiene esta forma (plantilla de `PRD.md` §5):
-
-```markdown
-# Configuración de impresora Kyocera TaskAlfa 7003i
-
-## Síntoma
-El usuario no puede imprimir o requiere configurar la impresora
-multifuncional Kyocera 7003 en su equipo (driver no instalado o
-impresora predeterminada mal configurada).
-
-## Categoría
-Equipos Informáticos > Impresora Multifuncional
-
-## Causa probable
-Impresora predeterminada no configurada correctamente en el equipo,
-o driver de la Kyocera 7003 no instalado tras un cambio de equipo
-o reinicio de credenciales.
-
-## Solución
-1. Instalar/verificar el driver de la impresora Kyocera 7003 en el equipo.
-2. Configurar la impresora como predeterminada.
-3. Validar con una hoja de prueba de impresión.
-
-## Aplicable a
-Impresoras Kyocera TaskAlfa 7003i en Sede Central y sedes desconcentradas.
-
-## Trazabilidad
-- Tickets fuente: 96044, 95984, 95645, 95439, 94922, 94595, 94571,
-  77962, 77975, 74359 ... (142 en total)
-- Última actualización: [fecha de generación]
-- Estado: borrador
-```
-
-**Argumento central:** el conocimiento **se escribió solo**, a partir de 142 casos reales, sin que nadie del equipo redactara el artículo a mano.
+1. No ejecutar «Generar borradores» / `POST /kedb/generate`.
+2. No abrir el Excel crudo (`Tickets_Consolidados.xlsx`) en pantalla.
+3. No improvisar tickets con datos personales.
+4. No abrir el tablero del coordinador ni búsqueda libre KEDB (Fase 2; fuera del camino dorado).
+5. No insistir con más de un ticket de respaldo: uno basta para variedad.
 
 ---
 
-## Escena 3 — Cierre del ciclo
+## Por qué este guion
 
-El experto técnico abre este artículo en estado `borrador` (llegó a su bandeja porque `GET /kedb/pendientes` lo notificó, HU14), lo revisa en unos segundos porque ya reconoce el problema, y hace clic en "Aprobar" (`PATCH /kedb/articulos/{id}` → `estado: validado`).
-
-**Por qué esto cierra el ciclo frente al cliente:** a partir de ese clic, la próxima vez que un operador reciba un ticket de Kyocera, el Agente RAG (C5) recupera este artículo KEDB ya validado —no solo tickets sueltos del histórico— porque `KEDB Storage` retroalimenta a C5. Es el momento en que se le puede decir al patrocinador: "esto que acaban de ver aprobar ya está disponible para todos los operadores".
-
----
-
-## Por qué esta secuencia específica
-
-- **Empezar por la Escena 1 y no por la KEDB es deliberado.** La KEDB es el diferenciador técnico, pero lo que un operador de Mesa de Ayuda entiende de inmediato es "le paso un ticket y me da la respuesta ya". Es el gancho.
-- **Usar el mismo dominio (Kyocera/impresoras) en las tres escenas**, en vez de tres ejemplos desconectados, hace que el cliente vea la conexión causal: el ticket que se clasifica en la Escena 1 es del mismo tipo de problema que generó el artículo que se aprueba en la Escena 3. Refuerza que es un ciclo, no tres features sueltas.
-- **Que la Escena 2 sea prework y no en vivo** no es solo por seguridad técnica (evitar que el LLM improvise mal frente al cliente): también evita que la demo dependa de HDBSCAN encontrando un buen clúster en tiempo real, cuando ya se sabe, con datos, cuál es el mejor clúster disponible.
-
----
-
-## Cifras de respaldo (solo si el cliente pregunta por desempeño)
-
-De `PRD.md` §9 y `chapter-3.md` Tabla 25: F1 macro ≥0.80, Recall@5 ≥0.85, cobertura KEDB ≥80% de recurrentes, ≥50 artículos trazables, calidad experta ≥4/5, reducción de ≥50% en tiempo de búsqueda, ninguna clase de prioridad sobre 70% (vs. 95.9% actual).
-
-## Advertencia de anonimización
-
-`artifacts/Tickets_Consolidados.xlsx` es el export **sin anonimizar**: las columnas `Solicitante - Solicitante`, `Asignada a - Técnico` y `Solicitante - Autor` contienen nombres reales. Los títulos y soluciones citados en este documento se revisaron y no contienen PII, pero cualquier ticket adicional que se extraiga de ese archivo para ampliar la demo debe pasar primero por C1 (o al menos por una revisión manual) antes de mostrarse en pantalla — nunca usar el archivo crudo directamente frente al cliente.
+- **Mismo dominio (Kyocera) en las 3 escenas** → el cliente ve un ciclo, no tres features sueltas.
+- **Texto no literal del histórico** → clasificación y RAG genuinos, no match exacto.
+- **KEDB como prework** → resultado estable; la validación experta sí es en vivo (el clic que cierra el ciclo).

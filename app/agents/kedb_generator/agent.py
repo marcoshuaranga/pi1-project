@@ -143,9 +143,8 @@ Responde SOLO con JSON válido."""
         return articles
 
     def generate_demo_fixture(self) -> KedbArticulo:
-        """Pre-built Kyocera article for demo (fallback without LLM)."""
-        from app.fixtures.kyocera_demo import build_demo_articulo, load_kyocera_ticket_ids
+        """Pre-built Kyocera article for demo (idempotent: one clean borrador)."""
+        from app.fixtures.kyocera_demo import ensure_clean_demo_articulo
 
-        articulo = build_demo_articulo(ticket_ids=load_kyocera_ticket_ids())
-        self.store.create(articulo)
+        articulo, _removed = ensure_clean_demo_articulo(self.store)
         return articulo

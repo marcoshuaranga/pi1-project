@@ -149,9 +149,13 @@ curl -s http://localhost:8000/health
 # 1. Pipeline de datos (muestra top-9 → processed + Chroma)
 docker compose --profile pipeline run --rm pipeline full
 
-# 2. Artículo KEDB Kyocera (~142 tickets fuente) + golden sample + métricas C9
+# 2. Artículo KEDB Kyocera limpio (~142 tickets fuente) + golden sample + métricas C9
+#    Idempotente: borra borradores Kyocera previos y deja exactamente 1 pendiente limpio.
 docker compose exec api python scripts/seed_demo.py
 # Alternativa: curl -X POST http://localhost:8000/kedb/seed-demo
+
+# Si ya practicaste Escena 3 (artículo validado en RAG/Live Docs), reset completo:
+# docker compose exec api python scripts/reset_demo.py
 ```
 
 Si `seed_demo` no pudo calcular evaluación (sin `tickets_eval.json` o fallo de embeddings), encolar:
@@ -171,9 +175,9 @@ curl -s http://localhost:8000/metrics/evaluacion
 | Check | Comando / acción | Criterio |
 | :--- | :--- | :--- |
 | API | `curl http://localhost:8000/health` | `"status":"ok"` |
-| Pendientes (HU14 bandeja) | `curl http://localhost:8000/kedb/pendientes` | ≥1 artículo `borrador` Kyocera |
+| Pendientes (HU14 bandeja) | `curl http://localhost:8000/kedb/pendientes` | **Exactamente 1** borrador Kyocera (título TaskAlfa 7003i, no “Test edit…”) |
 | Trazabilidad | Abrir artículo en UI Experto | Badge **~142 tickets fuente** (o N del extract real) |
-| Métricas | `curl http://localhost:8000/metrics/evaluacion` | `muestra_tickets` > 0 (Kappa puede ser `null`) |
+| Métricas | `curl http://localhost:8000/metrics/evaluacion` | `muestra_tickets` > 0; ver nota F1/Recall abajo |
 | UI | http://localhost:3000 | Operador carga |
 
 Si Chroma está vacío o la API key falla: Escena 1 puede degradar (sin Top-5 útiles). Preferir reintentar pipeline/embeddings antes de la demo.
@@ -200,13 +204,14 @@ Si Chroma está vacío o la API key falla: Escena 1 puede degradar (sin Top-5 ú
 1. Ir a http://localhost:3000/experto
 2. La bandeja de pendientes es la **alerta HU14** de esta demo (pull vía `GET /kedb/pendientes` + badge). No hay email/push.
 3. Abrir el artículo Kyocera pre-sembrado
-4. Mostrar trazabilidad N:1 y el conteo de tickets fuente (~142)
+4. Mostrar trazabilidad N:1 (**HU09**) y el conteo de tickets fuente (~142)
+5. Opcional: **Editar (HU10)** título/síntoma/causa/solución → Guardar (sigue en borrador)
 
 ---
 
 ## Escena 3 — Cierre del ciclo
 
-1. Clic en **Aprobar (HU10)**
+1. Clic en **Aprobar (HU10)** — el artículo sale de pendientes; alert de éxito
 2. Volver a Escena 1 (Operador) con un ticket similar Kyocera
 3. Enviar de nuevo y **señalar** en el Top-5 un hit con `tipo: kedb` (artículo validado indexado en RAG)
 
@@ -218,8 +223,13 @@ Si Chroma está vacío o la API key falla: Escena 1 puede degradar (sin Top-5 ú
 curl -s http://localhost:8000/metrics/evaluacion
 ```
 
-En esta versión: F1 macro y Recall@5 (caché precomputada). Kappa no se calcula.  
-Metas del PRD: F1 ≥ 0.80, Recall@5 ≥ 0.85 (no hace falta mostrarlas salvo pregunta).
+En esta versión: F1 macro y Recall@5 (caché precomputada). Kappa no se calcula.
+
+**Cómo interpretarlas (importante ante el patrocinador):**
+
+- **F1 macro:** clasificación sobre una muestra del split `eval` (típicamente 50 tickets). Meta PRD ≥ 0.80.
+- **Recall@5:** métrica **simplificada** de esta build — cuenta hit solo si el mismo `ticket_id` del query reaparece en el Top-5. Eso subestima el Recall “de negocio” (soluciones semánticamente útiles de otros tickets). Un valor bajo (p. ej. 0.20) **no** invalida la Escena 1: en demo se juzga por relevancia de las soluciones mostradas, no por esta cifra.
+- No hace falta proyectar las metas del PRD salvo que pregunten; si lo hacen, aclara la definición simplificada de Recall@5.
 
 ---
 
@@ -233,7 +243,9 @@ Metas del PRD: F1 ≥ 0.80, Recall@5 ≥ 0.85 (no hace falta mostrarlas salvo pr
 
 | Problema | Acción |
 | :--- | :--- |
-| Sin artículo pendiente | `curl -X POST http://localhost:8000/kedb/seed-demo` |
+| Sin artículo pendiente / borradores sucios | `curl -X POST http://localhost:8000/kedb/seed-demo` (idempotente: 1 Kyocera limpio) |
+| Tras practicar Escena 3 (artículo ya validado) | `docker compose exec api python scripts/reset_demo.py` |
 | Métricas en 0 | Re-correr `python scripts/seed_demo.py` o `POST /metrics/evaluacion` |
 | WS no conecta | La UI usa REST automáticamente; la demo sigue |
 | OpenAI sin cuota | `EMBEDDING_PROVIDER=local` en `.env` y rebuild |
+| Preguntan por Recall@5 bajo | Explicar métrica simplificada (ver sección cifras de respaldo) |

@@ -11,17 +11,17 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.config import get_settings
-from app.fixtures.kyocera_demo import build_demo_articulo, load_kyocera_ticket_ids
+from app.fixtures.kyocera_demo import ensure_clean_demo_articulo
 from app.storage.kedb_store.store import KedbStore
 
 
 def seed_demo_kedb():
-    """Create Kyocera demo article without LLM/Chroma (DEMO.md Escena 2)."""
-    ticket_ids = load_kyocera_ticket_ids(refresh_fixture=True)
+    """Idempotent Kyocera demo article (DEMO.md Escena 2): one clean borrador."""
     store = KedbStore()
-    articulo = build_demo_articulo(ticket_ids=ticket_ids)
-    store.create(articulo)
-    print(f"Demo KEDB article created: {articulo.articulo_id}")
+    articulo, removed = ensure_clean_demo_articulo(store, refresh_fixture=True)
+    if removed:
+        print(f"Removed {removed} previous Kyocera borrador(es)")
+    print(f"Demo KEDB article ready: {articulo.articulo_id}")
     print(f"  estado={articulo.estado.value}  titulo={articulo.titulo}")
     print(f"  tickets_fuente={len(articulo.tickets_fuente)}")
     return articulo

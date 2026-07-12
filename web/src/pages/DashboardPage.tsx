@@ -79,27 +79,29 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="stat bg-base-100 shadow rounded-lg">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 items-start">
+        <div className="stat bg-base-100 shadow rounded-lg self-start">
           <div className="stat-title">Artículos KEDB</div>
-          <div className="stat-value text-primary">
+          <div className="stat-value text-primary text-3xl">
             {(cobertura?.total_articulos as number) ?? "—"}
           </div>
         </div>
-        <div className="stat bg-base-100 shadow rounded-lg">
+        <div className="stat bg-base-100 shadow rounded-lg self-start">
           <div className="stat-title">Validados</div>
-          <div className="stat-value text-success">
+          <div className="stat-value text-success text-3xl">
             {(cobertura?.validados as number) ?? "—"}
           </div>
         </div>
-        <div className="stat bg-base-100 shadow rounded-lg">
+        <div className="stat bg-base-100 shadow rounded-lg self-start">
           <div className="stat-title">Tickets procesados</div>
-          <div className="stat-value">{(dashboard?.tickets_procesados as number) ?? "—"}</div>
+          <div className="stat-value text-3xl">
+            {(dashboard?.tickets_procesados as number) ?? "—"}
+          </div>
         </div>
       </div>
 
       <div className="card bg-base-100 shadow mb-4">
-        <div className="card-body">
+        <div className="card-body gap-3 p-4 !flex-none">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <h3 className="card-title text-sm">Métricas de evaluación (C9)</h3>
             <button
@@ -118,7 +120,7 @@ export default function DashboardPage() {
             </button>
           </div>
           {evaluacion ? (
-            <div className="flex gap-6 text-sm">
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
               <span>
                 F1 macro: <strong>{evaluacion.f1_macro as number}</strong>
               </span>
@@ -134,11 +136,11 @@ export default function DashboardPage() {
       </div>
 
       <div className="card bg-base-100 shadow mb-4">
-        <div className="card-body">
+        <div className="card-body gap-3 p-4 !flex-none">
           <h3 className="card-title text-sm">Búsqueda directa KEDB (HU16)</h3>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <input
-              className="input input-bordered flex-1"
+              className="input input-bordered flex-1 min-w-[12rem]"
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
               placeholder="Buscar en KEDB..."
@@ -148,7 +150,7 @@ export default function DashboardPage() {
             </button>
           </div>
           {searchResults.length > 0 && (
-            <ul className="mt-3 space-y-2 text-sm">
+            <ul className="mt-1 space-y-2 text-sm">
               {searchResults.map((r: unknown, i) => {
                 const item = r as {
                   titulo?: string;
@@ -168,7 +170,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="card bg-base-100 shadow">
-        <div className="card-body">
+        <div className="card-body gap-3 p-4 !flex-none">
           <h3 className="card-title text-sm">Gestión ciclo de vida (HU17)</h3>
           <div className="overflow-x-auto">
             <table className="table table-sm">
@@ -190,12 +192,16 @@ export default function DashboardPage() {
                   }[]
                 ).map((a) => (
                   <tr key={a.articulo_id}>
-                    <td className="font-mono text-xs">{a.articulo_id}</td>
-                    <td>{a.titulo.slice(0, 50)}</td>
+                    <td className="font-mono text-xs whitespace-nowrap">{a.articulo_id}</td>
+                    <td className="max-w-[14rem]">
+                      <span className="line-clamp-2">{a.titulo}</span>
+                    </td>
                     <td>
                       <span className="badge badge-sm">{a.estado}</span>
                     </td>
-                    <td className="text-xs">{a.categoria.slice(0, 30)}</td>
+                    <td className="text-xs max-w-[12rem]">
+                      <span className="line-clamp-2 whitespace-normal">{a.categoria}</span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -122,6 +122,13 @@ class KedbStore:
             )
         return articulo
 
+    def delete(self, articulo_id: str) -> bool:
+        with self._conn() as conn:
+            cur = conn.execute(
+                "DELETE FROM kedb_articulos WHERE articulo_id = ?", (articulo_id,)
+            )
+        return cur.rowcount > 0
+
     def get(self, articulo_id: str) -> KedbArticulo | None:
         with self._conn() as conn:
             row = conn.execute(
@@ -154,6 +161,10 @@ class KedbStore:
             return existing
         if "estado" in updates and updates["estado"] is not None:
             updates["estado"] = updates["estado"].value
+        # Bump version when content fields change (not only estado transitions)
+        content_keys = {"titulo", "sintoma", "causa", "solucion", "aplicable_a"}
+        if content_keys & set(updates.keys()):
+            updates["version"] = int(existing.version) + 1
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [articulo_id]
         with self._conn() as conn:

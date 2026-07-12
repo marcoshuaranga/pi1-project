@@ -105,12 +105,11 @@ async def pendientes():
 
 @router.post("/seed-demo", response_model=KedbArticulo)
 async def seed_demo():
-    """Create Kyocera demo article without LLM/Chroma (DEMO.md Escena 2)."""
-    from app.fixtures.kyocera_demo import build_demo_articulo, load_kyocera_ticket_ids
+    """Idempotent Kyocera demo article (DEMO.md Escena 2): one clean borrador."""
+    from app.fixtures.kyocera_demo import ensure_clean_demo_articulo
 
-    ticket_ids = load_kyocera_ticket_ids(refresh_fixture=True)
-    articulo = build_demo_articulo(ticket_ids=ticket_ids)
-    return get_store().create(articulo)
+    articulo, _removed = ensure_clean_demo_articulo(get_store(), refresh_fixture=True)
+    return articulo
 
 
 @router.post("/export-docs")

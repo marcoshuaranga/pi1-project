@@ -22,7 +22,20 @@ async def broadcast_event(ticket_id: str, evento: PipelineEvento) -> None:
         except Exception:
             dead.append(ws)
     for ws in dead:
-        _connections[ticket_id].remove(ws)
+        if ws in _connections[ticket_id]:
+            _connections[ticket_id].remove(ws)
+
+
+async def broadcast_json(ticket_id: str, payload: dict) -> None:
+    dead = []
+    for ws in list(_connections.get(ticket_id, [])):
+        try:
+            await ws.send_json(payload)
+        except Exception:
+            dead.append(ws)
+    for ws in dead:
+        if ws in _connections[ticket_id]:
+            _connections[ticket_id].remove(ws)
 
 
 def _process_ticket_sync(texto: str, ticket_id: str, loop: asyncio.AbstractEventLoop):
@@ -45,7 +58,9 @@ async def pipeline_ws(websocket: WebSocket, ticket_id: str):
                     _process_ticket_sync, data["texto"], ticket_id, loop
                 )
                 save_ticket(response)
-                await websocket.send_json({"type": "result", "data": response.model_dump()})
+                payload = {"type": "result", "data": response.model_dump()}
+                # Fan-out so a client that left and re-subscribed still gets the result.
+                await broadcast_json(ticket_id, payload)
     except WebSocketDisconnect:
         pass
     finally:

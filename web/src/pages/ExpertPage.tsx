@@ -1,17 +1,39 @@
 import { useEffect, useRef, useState } from "react";
 import { api, KedbArticulo, pollJob } from "../api";
 
+type EditDraft = {
+  titulo: string;
+  sintoma: string;
+  causa: string;
+  solucion: string;
+  aplicable_a: string;
+};
+
+function draftFromArticulo(a: KedbArticulo): EditDraft {
+  return {
+    titulo: a.titulo,
+    sintoma: a.sintoma,
+    causa: a.causa,
+    solucion: a.solucion,
+    aplicable_a: a.aplicable_a ?? "",
+  };
+}
+
 export default function ExpertPage() {
   const [pendientes, setPendientes] = useState<KedbArticulo[]>([]);
   const [selected, setSelected] = useState<KedbArticulo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deciding, setDeciding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<EditDraft | null>(null);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
   const [jobStatus, setJobStatus] = useState("");
   const [generating, setGenerating] = useState(false);
   const pollAbort = useRef<AbortController | null>(null);
 
-  const load = async () => {
+  const load = async (opts?: { preferId?: string | null }) => {
     setLoading(true);
     setError("");
     try {
@@ -19,7 +41,13 @@ export default function ExpertPage() {
       setPendientes(list);
       setSelected((prev) => {
         if (!list.length) return null;
-        if (prev && list.some((a) => a.articulo_id === prev.articulo_id)) return prev;
+        const prefer = opts?.preferId;
+        if (prefer && list.some((a) => a.articulo_id === prefer)) {
+          return list.find((a) => a.articulo_id === prefer) ?? list[0];
+        }
+        if (prev && list.some((a) => a.articulo_id === prev.articulo_id)) {
+          return list.find((a) => a.articulo_id === prev.articulo_id) ?? list[0];
+        }
         return list[0];
       });
     } catch (e) {
@@ -33,6 +61,77 @@ export default function ExpertPage() {
     load();
     return () => pollAbort.current?.abort();
   }, []);
+
+  const selectArticulo = (a: KedbArticulo) => {
+    setSelected(a);
+    setEditing(false);
+    setDraft(null);
+    setMsg("");
+  };
+
+  const startEdit = () => {
+    if (!selected) return;
+    setDraft(draftFromArticulo(selected));
+    setEditing(true);
+    setMsg("");
+    setError("");
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setDraft(null);
+  };
+
+  const removeFromPendientes = (articuloId: string) => {
+    setPendientes((list) => {
+      const next = list.filter((a) => a.articulo_id !== articuloId);
+      setSelected((prev) => {
+        if (prev?.articulo_id !== articuloId) return prev;
+        return next[0] ?? null;
+      });
+      return next;
+    });
+    setEditing(false);
+    setDraft(null);
+  };
+
+  const syncPendiente = (updated: KedbArticulo) => {
+    setPendientes((list) =>
+      list.map((a) => (a.articulo_id === updated.articulo_id ? updated : a))
+    );
+    setSelected(updated);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selected || !draft || saving) return;
+    const titulo = draft.titulo.trim();
+    const sintoma = draft.sintoma.trim();
+    const causa = draft.causa.trim();
+    const solucion = draft.solucion.trim();
+    if (!titulo || !sintoma || !causa || !solucion) {
+      setError("Título, síntoma, causa y solución son obligatorios.");
+      return;
+    }
+    setError("");
+    setSaving(true);
+    try {
+      const updated = await api.updateArticulo(selected.articulo_id, {
+        titulo,
+        sintoma,
+        causa,
+        solucion,
+        aplicable_a: draft.aplicable_a.trim() || undefined,
+      });
+      syncPendiente(updated);
+      setEditing(false);
+      setDraft(null);
+      setMsg(`Cambios guardados en «${updated.titulo}» (sigue en borrador).`);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleGenerate = async () => {
     setError("");
@@ -72,39 +171,55 @@ export default function ExpertPage() {
   };
 
   const handleApprove = async () => {
-    if (!selected) return;
+    if (!selected || deciding || editing) return;
+    const current = selected;
+    setError("");
+    setDeciding(true);
     try {
-      const updated = await api.approveArticulo(selected.articulo_id);
-      setSelected(updated);
-      setMsg("Artículo aprobado — disponible para RAG y Live Docs.");
-      await load();
+      const updated = await api.approveArticulo(current.articulo_id);
+      removeFromPendientes(current.articulo_id);
+      setMsg(
+        `«${updated.titulo}» aprobado (estado: ${updated.estado}). Ya está indexado para RAG y disponible en Live Docs.`
+      );
     } catch (e) {
       setError(String(e));
+      await load({ preferId: current.articulo_id });
+    } finally {
+      setDeciding(false);
     }
   };
 
   const handleReject = async () => {
-    if (!selected) return;
+    if (!selected || deciding || editing) return;
+    const current = selected;
+    setError("");
+    setDeciding(true);
     try {
-      await api.rejectArticulo(selected.articulo_id);
-      setMsg("Artículo rechazado.");
-      setSelected(null);
-      await load();
+      await api.rejectArticulo(current.articulo_id);
+      removeFromPendientes(current.articulo_id);
+      setMsg(`«${current.titulo}» rechazado (estado: obsoleto).`);
     } catch (e) {
       setError(String(e));
+      await load({ preferId: current.articulo_id });
+    } finally {
+      setDeciding(false);
     }
   };
 
+  const emptyPendientes = !loading && pendientes.length === 0 && !error;
+  const busy = deciding || saving || generating;
+
   return (
     <div className="max-w-5xl mx-auto p-4">
-      <div className="navbar bg-secondary text-secondary-content rounded-lg mb-4 px-4 shadow">
+      <div className="navbar bg-secondary text-secondary-content rounded-lg mb-4 px-4 shadow flex-wrap gap-2">
         <span className="text-lg font-bold">Validación KEDB — Experto Técnico</span>
-        <span className="ml-4 badge badge-warning">{pendientes.length} pendientes</span>
+        <span className="badge badge-warning">{pendientes.length} pendientes</span>
         <div className="ml-auto">
           <button
+            type="button"
             className="btn btn-sm btn-primary"
             onClick={handleGenerate}
-            disabled={generating}
+            disabled={busy}
           >
             {generating ? (
               <>
@@ -124,10 +239,19 @@ export default function ExpertPage() {
         </div>
       )}
 
+      {msg && (
+        <div className="alert alert-success mb-4 text-sm">
+          <span>{msg}</span>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setMsg("")}>
+            Cerrar
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="alert alert-error mb-4 text-sm">
           <span>{error}</span>
-          <button className="btn btn-sm" onClick={load}>
+          <button type="button" className="btn btn-sm" onClick={() => load()}>
             Reintentar
           </button>
         </div>
@@ -138,25 +262,34 @@ export default function ExpertPage() {
           <span className="loading loading-spinner" />
           Cargando pendientes desde la API…
         </div>
-      ) : pendientes.length === 0 && !error ? (
+      ) : emptyPendientes ? (
         <div className="alert alert-info">
-          No hay artículos pendientes. Usa &quot;Generar borradores&quot; (poll cada 5s) o{" "}
-          <code>POST /kedb/seed-demo</code>.
+          <div>
+            <p className="font-medium">No hay artículos pendientes de validación.</p>
+            <p className="text-sm opacity-80 mt-1">
+              Si acabas de aprobar uno, ya salió de esta bandeja. Puedes continuar en{" "}
+              <strong>Operador</strong> (Escena 3) o en <strong>Live Docs</strong>.
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="col-span-1">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+          <div className="col-span-1 self-start w-full">
             <div className="card bg-base-100 shadow">
-              <div className="card-body p-4">
+              <div className="card-body gap-2 p-4 !flex-none">
                 <h3 className="font-semibold text-sm">Pendientes (HU14)</h3>
-                <ul className="menu menu-sm">
+                <ul className="menu menu-sm w-full">
                   {pendientes.map((a) => (
                     <li key={a.articulo_id}>
                       <button
+                        type="button"
                         className={selected?.articulo_id === a.articulo_id ? "active" : ""}
-                        onClick={() => setSelected(a)}
+                        onClick={() => selectArticulo(a)}
+                        disabled={busy}
                       >
-                        {a.titulo.slice(0, 40)}...
+                        <span className="text-left whitespace-normal leading-snug">
+                          {a.titulo.length > 60 ? `${a.titulo.slice(0, 60)}…` : a.titulo}
+                        </span>
                       </button>
                     </li>
                   ))}
@@ -165,56 +298,171 @@ export default function ExpertPage() {
             </div>
           </div>
 
-          {selected && (
-            <div className="col-span-2 card bg-base-100 shadow">
-              <div className="card-body">
-                <h2 className="card-title">{selected.titulo}</h2>
-                <span className="badge">{selected.estado}</span>
-                <div className="divider my-1" />
+          {selected ? (
+            <div className="col-span-1 lg:col-span-2 card bg-base-100 shadow self-start w-full">
+              <div className="card-body gap-3 p-4 !flex-none">
+                <div className="flex flex-wrap items-start gap-2">
+                  {editing && draft ? (
+                    <input
+                      className="input input-bordered input-sm flex-1 min-w-0"
+                      value={draft.titulo}
+                      onChange={(e) => setDraft({ ...draft, titulo: e.target.value })}
+                      disabled={saving}
+                      aria-label="Título"
+                    />
+                  ) : (
+                    <h2 className="card-title text-base leading-snug flex-1 min-w-0">
+                      {selected.titulo}
+                    </h2>
+                  )}
+                  <span className="badge badge-warning badge-sm shrink-0">{selected.estado}</span>
+                </div>
+                <div className="divider my-0" />
 
                 <section>
                   <h4 className="font-semibold text-sm">Síntoma</h4>
-                  <p className="text-sm">{selected.sintoma}</p>
+                  {editing && draft ? (
+                    <textarea
+                      className="textarea textarea-bordered textarea-sm w-full mt-1 min-h-20"
+                      value={draft.sintoma}
+                      onChange={(e) => setDraft({ ...draft, sintoma: e.target.value })}
+                      disabled={saving}
+                    />
+                  ) : (
+                    <p className="text-sm mt-1">{selected.sintoma}</p>
+                  )}
                 </section>
-                <section className="mt-3">
+                <section>
                   <h4 className="font-semibold text-sm">Causa probable</h4>
-                  <p className="text-sm">{selected.causa}</p>
+                  {editing && draft ? (
+                    <textarea
+                      className="textarea textarea-bordered textarea-sm w-full mt-1 min-h-20"
+                      value={draft.causa}
+                      onChange={(e) => setDraft({ ...draft, causa: e.target.value })}
+                      disabled={saving}
+                    />
+                  ) : (
+                    <p className="text-sm mt-1">{selected.causa}</p>
+                  )}
                 </section>
-                <section className="mt-3">
+                <section>
                   <h4 className="font-semibold text-sm">Solución</h4>
-                  <p className="text-sm whitespace-pre-line">{selected.solucion}</p>
+                  {editing && draft ? (
+                    <textarea
+                      className="textarea textarea-bordered textarea-sm w-full mt-1 min-h-28"
+                      value={draft.solucion}
+                      onChange={(e) => setDraft({ ...draft, solucion: e.target.value })}
+                      disabled={saving}
+                    />
+                  ) : (
+                    <p className="text-sm whitespace-pre-line mt-1">{selected.solucion}</p>
+                  )}
                 </section>
-                <section className="mt-3">
+                <section>
+                  <h4 className="font-semibold text-sm">Aplicable a</h4>
+                  {editing && draft ? (
+                    <input
+                      className="input input-bordered input-sm w-full mt-1"
+                      value={draft.aplicable_a}
+                      onChange={(e) => setDraft({ ...draft, aplicable_a: e.target.value })}
+                      disabled={saving}
+                      placeholder="Opcional"
+                    />
+                  ) : (
+                    <p className="text-sm mt-1 text-base-content/80">
+                      {selected.aplicable_a || "—"}
+                    </p>
+                  )}
+                </section>
+                <section>
                   <h4 className="font-semibold text-sm">Trazabilidad N:1 (HU09)</h4>
                   <p className="text-sm mt-1">
-                    <span className="badge badge-primary badge-lg">
+                    <span className="badge badge-primary">
                       {selected.tickets_fuente.length} tickets fuente
                     </span>
                   </p>
-                  <p className="text-xs font-mono text-base-content/70 mt-2">
+                  <p className="text-xs font-mono text-base-content/70 mt-2 break-all">
                     {selected.tickets_fuente.slice(0, 20).join(", ")}
                     {selected.tickets_fuente.length > 20 &&
-                      ` ... (+${selected.tickets_fuente.length - 20} más)`}
+                      ` … (+${selected.tickets_fuente.length - 20} más)`}
                   </p>
                 </section>
 
-                <div className="card-actions justify-end mt-4">
-                  <button className="btn btn-error btn-sm" onClick={handleReject}>
-                    Rechazar
-                  </button>
-                  <button className="btn btn-success btn-sm" onClick={handleApprove}>
-                    Aprobar (HU10)
-                  </button>
+                <div className="flex flex-wrap justify-end gap-2 mt-2">
+                  {editing ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={cancelEdit}
+                        disabled={saving}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={handleSaveEdit}
+                        disabled={saving}
+                      >
+                        {saving ? (
+                          <>
+                            <span className="loading loading-spinner loading-xs" />
+                            Guardando…
+                          </>
+                        ) : (
+                          "Guardar cambios"
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        onClick={startEdit}
+                        disabled={busy}
+                      >
+                        Editar (HU10)
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-error btn-sm"
+                        onClick={handleReject}
+                        disabled={busy}
+                      >
+                        {deciding ? (
+                          <span className="loading loading-spinner loading-xs" />
+                        ) : (
+                          "Rechazar"
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-success btn-sm"
+                        onClick={handleApprove}
+                        disabled={busy}
+                      >
+                        {deciding ? (
+                          <>
+                            <span className="loading loading-spinner loading-xs" />
+                            Aprobando…
+                          </>
+                        ) : (
+                          "Aprobar (HU10)"
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
-                {msg && <p className="text-success text-sm mt-2">{msg}</p>}
               </div>
+            </div>
+          ) : (
+            <div className="col-span-1 lg:col-span-2 alert self-start">
+              Selecciona un artículo de la lista para revisarlo.
             </div>
           )}
         </div>
-      )}
-
-      {msg && pendientes.length === 0 && !selected && (
-        <p className="text-success text-sm mt-2">{msg}</p>
       )}
     </div>
   );

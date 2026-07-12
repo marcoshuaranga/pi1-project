@@ -23,28 +23,30 @@ Corresponde al ciclo cerrado completo, ya validado en la incepción ágil y cons
 | Bloque | Componentes | Historias de usuario |
 | :--- | :--- | :--- |
 | Datos | C1 Anonimización, C2 Ingesta/Normalización | HU13 (tarea técnica) |
-| Asistencia | C3 Clasificador, C4 Priorizador, C5 Agente RAG | HU01, HU04, HU06 |
-| Conocimiento | C6 Generador KEDB (agrupación + síntesis) | HU08a, HU08b, HU10, HU14 |
+| Asistencia | C3 Clasificador, C4 Priorizador, C5 Agente RAG | HU01, HU02 ✅, HU04, HU06, HU07 ✅ |
+| Conocimiento | C6 Generador KEDB (agrupación + síntesis) | HU08a, HU08b, HU09 ✅, HU10, HU14 |
 | Orquestación | C7 Orquestador (LangGraph, conditional routing) | tarea técnica (sustenta HU01/04/06/14) |
 | Interfaz | C8 Interfaz del Operador (mínima) | soporte de HU01, HU04, HU06, HU10, HU14 |
 | Evaluación | C9 Framework de evaluación (métricas de respaldo, no en vivo) | soporte de F1/Recall@5 |
+
+> **Nota de construcción:** HU02, HU07 y HU09 se adelantaron al MVP (ya estaban en API/UI del camino dorado). Siguen listadas en §2.2 por trazabilidad del backlog original, marcadas como ✅ hechas.
 
 ### 2.2 Dentro de alcance (backlog completo — Fase 2, post-MVP)
 
 Historias ya priorizadas en el Product Backlog (`chapter-3.md`, Tabla 27) que enriquecen el producto pero no son bloqueantes para que el ciclo cerrado funcione:
 
-| ID | Título | Depende de |
-| :--- | :--- | :--- |
-| HU02 | Confianza de clasificación | HU01 |
-| HU03 | Corrección de categoría | HU01 |
-| HU05 | Justificación de prioridad | HU04 |
-| HU07 | Indicador de similitud | HU06 |
-| HU09 | Trazabilidad del artículo | HU08b |
-| HU11 | Utilidad del artículo | HU06 |
-| HU12 | Registro de nueva solución | HU06 |
-| HU15 | Tablero del coordinador | HU01, HU08b |
-| HU16 | Búsqueda directa en la KEDB | HU06 |
-| HU17 | Gestión del ciclo de vida | HU10 |
+| ID | Título | Depende de | Notas |
+| :--- | :--- | :--- | :--- |
+| HU02 ✅ | Confianza de clasificación | HU01 | Adelantada a MVP — hecha |
+| HU03 | Corrección de categoría | HU01 | |
+| HU05 | Justificación de prioridad | HU04 | |
+| HU07 ✅ | Indicador de similitud | HU06 | Adelantada a MVP — hecha |
+| HU09 ✅ | Trazabilidad del artículo | HU08b | Adelantada a MVP — hecha (Escena 2) |
+| HU11 | Utilidad del artículo | HU06 | |
+| HU12 | Registro de nueva solución | HU06 | |
+| HU15 | Tablero del coordinador | HU01, HU08b | |
+| HU16 | Búsqueda directa en la KEDB | HU06 | |
+| HU17 | Gestión del ciclo de vida | HU10 | |
 
 ### 2.3 Fuera de alcance (todo el producto, MVP y Fase 2)
 
@@ -299,11 +301,12 @@ Como operador, quiero que el sistema clasifique automáticamente cada ticket nue
 **Aceptación:** dado un ticket nuevo, cuando ingresa al sistema, entonces se le asigna una de las top 9 categorías con su nivel de confianza.
 **Componentes/endpoint:** C3, C7 · `POST /tickets`. **Depende de:** HU13.
 
-### HU02 — Confianza de clasificación *(Fase 2)* 📦
+### HU02 — Confianza de clasificación *(MVP — adelantada desde Fase 2)* ✅
 
 Como operador, quiero ver el nivel de confianza de la clasificación sugerida, para decidir si la acepto o la corrijo.
 **Aceptación:** dada una clasificación sugerida, cuando el operador la visualiza, entonces se muestra el porcentaje de confianza asociado.
 **Componentes/endpoint:** C3, C8 · campo `confianza` ya expuesto por `POST /tickets` (§6.1). **Depende de:** HU01.
+**Estado:** implementada en pantalla Operador (badge de categoría + `%` de confianza).
 
 ### HU03 — Corrección de categoría *(Fase 2)* 📦
 
@@ -329,11 +332,12 @@ Como operador, quiero recibir las soluciones similares ya aplicadas a tickets pa
 **Aceptación:** dado un ticket en atención, cuando el operador solicita ayuda, entonces el sistema devuelve las Top-K soluciones más similares del histórico y la KEDB.
 **Componentes/endpoint:** C5, C7 · `POST /tickets` (campo `soluciones`). **Depende de:** HU13.
 
-### HU07 — Indicador de similitud *(Fase 2)* 📦
+### HU07 — Indicador de similitud *(MVP — adelantada desde Fase 2)* ✅
 
 Como operador, quiero ver qué tan similar es cada solución sugerida, para elegir la más pertinente.
 **Aceptación:** dada una lista de soluciones sugeridas, cuando se presentan, entonces cada una muestra su grado de similitud.
 **Componentes/endpoint:** C5, C8 · campo `score` ya expuesto en `soluciones[]`. **Depende de:** HU06.
+**Estado:** implementada en pantalla Operador (similitud % por cada hit del Top-5).
 
 ### HU08a — Agrupación de tickets similares *(MVP core)* 🧱
 
@@ -347,17 +351,19 @@ Como experto técnico, quiero que el sistema genere un borrador de artículo KED
 **Aceptación:** dado un clúster de tickets similares, cuando se ejecuta la generación, entonces se crea un artículo KEDB borrador con problema, causa y solución.
 **Componentes/endpoint:** C6 (síntesis LLM) · `POST /kedb/generate` (etapa 2). **Depende de:** HU08a.
 
-### HU09 — Trazabilidad del artículo *(Fase 2)* 📦
+### HU09 — Trazabilidad del artículo *(MVP — adelantada desde Fase 2)* ✅
 
 Como experto técnico, quiero ver los tickets de origen de cada artículo, para verificar su fundamento.
 **Aceptación:** dado un artículo KEDB, cuando el experto lo abre, entonces se listan los tickets fuente que lo originaron (trazabilidad N:1).
 **Componentes/endpoint:** C6, C8 · `GET /kedb/articulos/{id}` (campo `tickets_fuente`). **Depende de:** HU08b.
+**Estado:** implementada en pantalla Experto (conteo + preview de IDs; Escena 2 de la demo).
 
 ### HU10 — Validación del artículo *(MVP core)* 🎯
 
 Como experto técnico, quiero aprobar, editar o rechazar los artículos borrador, para garantizar la calidad del conocimiento publicado.
 **Aceptación:** dado un artículo borrador, cuando el experto lo revisa, entonces puede aprobarlo, editarlo o rechazarlo y su estado se actualiza.
 **Componentes/endpoint:** C6, C8 · `PATCH /kedb/articulos/{id}`. **Depende de:** HU08b.
+**Estado:** UI Experto — Editar (título/síntoma/causa/solución/aplicable a) + Guardar; Aprobar (indexa RAG); Rechazar → `obsoleto`.
 
 ### HU11 — Utilidad del artículo *(Fase 2)* 📦
 

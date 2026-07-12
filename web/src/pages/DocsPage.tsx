@@ -78,18 +78,19 @@ export default function DocsPage() {
           <strong>Publicar validados → MD</strong>.
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="card bg-base-100 shadow">
-            <div className="card-body p-3">
-              <ul className="menu menu-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+          <div className="card bg-base-100 shadow self-start w-full">
+            <div className="card-body gap-2 p-3 !flex-none">
+              <ul className="menu menu-sm w-full">
                 {docs.map((d) => (
                   <li key={d.articulo_id}>
                     <button
+                      type="button"
                       className={selected?.articulo_id === d.articulo_id ? "active" : ""}
                       onClick={() => openDoc(d)}
                     >
-                      <span className="truncate">{d.titulo}</span>
-                      <span className="badge badge-xs">{d.estado}</span>
+                      <span className="truncate flex-1 text-left">{d.titulo}</span>
+                      <span className="badge badge-xs shrink-0">{d.estado}</span>
                     </button>
                   </li>
                 ))}
@@ -97,16 +98,20 @@ export default function DocsPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-2 card bg-base-100 shadow">
-            <div className="card-body">
+          <div className="lg:col-span-2 card bg-base-100 shadow self-start w-full">
+            <div className="card-body gap-3 p-4 !flex-none">
               {selected && (
                 <>
-                  <div className="flex items-center gap-2">
-                    <h2 className="card-title text-base">{selected.titulo}</h2>
-                    <span className="badge badge-sm">{selected.estado}</span>
-                    <span className="font-mono text-xs opacity-60">{selected.filename}</span>
+                  <div className="flex flex-wrap items-start gap-2">
+                    <h2 className="card-title text-base leading-snug flex-1 min-w-0">
+                      {selected.titulo}
+                    </h2>
+                    <span className="badge badge-sm shrink-0">{selected.estado}</span>
+                    <span className="font-mono text-xs opacity-60 w-full sm:w-auto">
+                      {selected.filename}
+                    </span>
                   </div>
-                  <div className="divider my-1" />
+                  <div className="divider my-0" />
                   <pre className="whitespace-pre-wrap text-sm bg-base-200 p-4 rounded-lg overflow-auto max-h-[70vh]">
                     {markdown}
                   </pre>

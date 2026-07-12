@@ -63,12 +63,25 @@ def test_demo_cycle_seed_approve_rag(client, monkeypatch, tmp_path):
         lambda **kwargs: ["96044", "95984", "95645", "95439", "94922"] * 28 + ["96044", "95984"],
     )
 
+    # First seed
     seed = client.post("/kedb/seed-demo")
     assert seed.status_code == 200
     articulo = seed.json()
     assert articulo["estado"] == "borrador"
     assert len(articulo["tickets_fuente"]) == 142
     assert "Kyocera" in articulo["titulo"]
+    first_id = articulo["articulo_id"]
+
+    # Idempotent: second seed removes previous Kyocera borrador(es) and creates one fresh
+    seed2 = client.post("/kedb/seed-demo")
+    assert seed2.status_code == 200
+    articulo2 = seed2.json()
+    assert articulo2["articulo_id"] != first_id
+    pendientes = client.get("/kedb/pendientes")
+    assert pendientes.status_code == 200
+    kyocera = [a for a in pendientes.json() if "kyocera" in a["titulo"].lower()]
+    assert len(kyocera) == 1
+    articulo = articulo2
 
     approve = client.patch(
         f"/kedb/articulos/{articulo['articulo_id']}",

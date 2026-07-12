@@ -223,3 +223,106 @@ def build_demo_articulo(
         estado=KedbEstado.BORRADOR,
         aplicable_a=DEMO_ARTICLE_TEMPLATE["aplicable_a"],
     )
+
+
+def _is_demo_kyocera_articulo(articulo: KedbArticulo) -> bool:
+    """Match demo Kyocera articles in any estado (seed, edits, approved practice)."""
+    titulo = (articulo.titulo or "").lower()
+    return (
+        "kyocera" in titulo
+        or "7003" in titulo
+        or titulo.startswith("test edit")
+        or DEMO_ARTICLE_TEMPLATE["titulo"].lower() in titulo
+    )
+
+
+def _is_demo_kyocera_borrador(articulo: KedbArticulo) -> bool:
+    """Match demo Kyocera drafts only."""
+    return articulo.estado == KedbEstado.BORRADOR and _is_demo_kyocera_articulo(articulo)
+
+
+def ensure_clean_demo_articulo(
+    store,
+    *,
+    ticket_ids: list[str] | None = None,
+    refresh_fixture: bool = True,
+) -> tuple[KedbArticulo, int]:
+    """Idempotent demo seed: remove Kyocera borradores, create one fresh article.
+
+    Returns (articulo, removed_count).
+    """
+    ids = (
+        ticket_ids
+        if ticket_ids is not None
+        else load_kyocera_ticket_ids(refresh_fixture=refresh_fixture)
+    )
+    removed = 0
+    for art in store.pendientes():
+        if _is_demo_kyocera_borrador(art):
+            if store.delete(art.articulo_id):
+                removed += 1
+                logger.info(
+                    "Removed demo borrador %s (%s)", art.articulo_id, art.titulo[:60]
+                )
+
+    articulo = build_demo_articulo(ticket_ids=ids)
+    store.create(articulo)
+    return articulo, removed
+
+
+def reset_demo_state(
+    store,
+    *,
+    clear_chroma: bool = True,
+    clear_markdown: bool = True,
+    refresh_fixture: bool = True,
+) -> dict:
+    """Full demo reset: remove all Kyocera KEDB rows (any estado), purge RAG/docs, re-seed.
+
+    Returns a summary dict for the CLI.
+    """
+    from app.config import get_settings
+    from app.storage.kedb_store.markdown import docs_dir
+
+    settings = get_settings()
+    to_remove = [a for a in store.list_all() if _is_demo_kyocera_articulo(a)]
+    removed_ids = [a.articulo_id for a in to_remove]
+    removed_db = 0
+    for art in to_remove:
+        if store.delete(art.articulo_id):
+            removed_db += 1
+
+    chroma_deleted = 0
+    if clear_chroma and removed_ids:
+        try:
+            from app.storage.vector_db.client import get_kedb_collection
+
+            col = get_kedb_collection(settings)
+            col.delete(ids=removed_ids)
+            chroma_deleted = len(removed_ids)
+        except Exception:
+            logger.exception("No se pudo limpiar Chroma KEDB; se continúa con el seed")
+
+    md_deleted = 0
+    if clear_markdown and removed_ids:
+        root = docs_dir(settings)
+        for aid in removed_ids:
+            for path in root.glob(f"{aid}*"):
+                try:
+                    path.unlink(missing_ok=True)
+                    md_deleted += 1
+                except OSError:
+                    logger.warning("No se pudo borrar %s", path)
+
+    articulo, _ = ensure_clean_demo_articulo(
+        store, refresh_fixture=refresh_fixture
+    )
+    # ensure_clean also removes borradores; we already cleared all Kyocera — count is fine
+    return {
+        "removed_db": removed_db,
+        "removed_ids": removed_ids,
+        "chroma_deleted": chroma_deleted,
+        "markdown_deleted": md_deleted,
+        "articulo": articulo,
+        "pendientes": len(store.pendientes()),
+    }

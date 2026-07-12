@@ -81,16 +81,21 @@ export interface PipelineWsEvent {
   salida?: Record<string, unknown>;
 }
 
+export function newTicketId(): string {
+  return `T-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+}
+
 /** Process ticket via WebSocket pipeline events; rejects on WS failure. */
 export function processTicketViaWs(
   texto: string,
   options?: {
+    ticketId?: string;
     onEvent?: (evento: PipelineWsEvent) => void;
     signal?: AbortSignal;
     timeoutMs?: number;
   }
 ): Promise<TicketResponse> {
-  const ticketId = `T-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  const ticketId = options?.ticketId ?? newTicketId();
   const url = `${wsBaseUrl()}/ws/pipeline/${ticketId}`;
   const timeoutMs = options?.timeoutMs ?? WS_PROCESS_TIMEOUT_MS;
 
@@ -157,20 +162,79 @@ export function processTicketViaWs(
   });
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+/** Listen to an in-flight pipeline without starting a new process. */
+export function subscribePipelineWs(
+  ticketId: string,
+  options?: {
+    onEvent?: (evento: PipelineWsEvent) => void;
+    onResult?: (result: TicketResponse) => void;
+    signal?: AbortSignal;
+  }
+): void {
+  const url = `${wsBaseUrl()}/ws/pipeline/${ticketId}`;
+  let ws: WebSocket;
+  try {
+    ws = new WebSocket(url);
+  } catch {
+    return;
+  }
+
+  const cleanup = () => {
+    options?.signal?.removeEventListener("abort", onAbort);
+    try {
+      ws.close();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const onAbort = () => cleanup();
+  options?.signal?.addEventListener("abort", onAbort, { once: true });
+
+  // Stay subscribed only — do not send { action: "process" }.
+  ws.onmessage = (msg) => {
+    try {
+      const data = JSON.parse(msg.data as string);
+      if (data?.type === "result" && data.data) {
+        options?.onResult?.(data.data as TicketResponse);
+        cleanup();
+        return;
+      }
+      if (data?.agente && data?.tipo) {
+        options?.onEvent?.(data as PipelineWsEvent);
+      }
+    } catch {
+      /* ignore malformed frames */
+    }
+  };
+
+  ws.onerror = () => cleanup();
+  ws.onclose = () => {
+    options?.signal?.removeEventListener("abort", onAbort);
+  };
+}
+
+async function request<T>(
+  path: string,
+  options?: RequestInit & { timeoutMs?: number }
+): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutMs = options?.timeoutMs ?? REQUEST_TIMEOUT_MS;
+  const { timeoutMs: _ignored, ...fetchOptions } = options ?? {};
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${API_URL}${path}`, {
-      headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
-      ...options,
+      headers: { "Content-Type": "application/json", ...(fetchOptions.headers || {}) },
+      ...fetchOptions,
       signal: controller.signal,
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") {
-      throw new Error("La API no respondió a tiempo (15s). Revisa que el contenedor api esté healthy.");
+      throw new Error(
+        `La API no respondió a tiempo (${Math.round(timeoutMs / 1000)}s). Revisa que el contenedor api esté healthy.`
+      );
     }
     throw e;
   } finally {
@@ -219,6 +283,9 @@ export const api = {
       body: JSON.stringify({ texto }),
     }),
 
+  getTicket: (ticketId: string) =>
+    request<TicketResponse>(`/tickets/${encodeURIComponent(ticketId)}`),
+
   getPendientes: () => request<KedbArticulo[]>("/kedb/pendientes"),
 
   getArticulo: (id: string) => request<KedbArticulo>(`/kedb/articulos/${id}`),
@@ -230,12 +297,30 @@ export const api = {
     request<KedbArticulo>(`/kedb/articulos/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ estado: "validado" }),
+      timeoutMs: 60_000,
     }),
 
   rejectArticulo: (id: string) =>
     request<KedbArticulo>(`/kedb/articulos/${id}`, {
       method: "PATCH",
       body: JSON.stringify({ estado: "obsoleto" }),
+      timeoutMs: 30_000,
+    }),
+
+  updateArticulo: (
+    id: string,
+    data: {
+      titulo?: string;
+      sintoma?: string;
+      causa?: string;
+      solucion?: string;
+      aplicable_a?: string;
+    }
+  ) =>
+    request<KedbArticulo>(`/kedb/articulos/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+      timeoutMs: 30_000,
     }),
 
   searchKedb: (q: string) =>
