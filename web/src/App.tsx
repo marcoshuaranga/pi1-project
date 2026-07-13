@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Link, Outlet, useBlocker } from "react-router-dom";
+import { NavLink, Outlet, useBlocker, useLocation } from "react-router-dom";
 
 type PipelineNavContextValue = {
   pipelineBusy: boolean;
@@ -19,8 +19,13 @@ export function usePipelineNavGuard() {
 const LEAVE_MSG =
   "El pipeline sigue ejecutándose. Si sales, puedes volver después para ver el resultado. ¿Cambiar de página?";
 
+function navClass(isActive: boolean, activeTone: string) {
+  return `btn btn-sm ${isActive ? activeTone : "btn-ghost"}`;
+}
+
 export default function App() {
   const [pipelineBusy, setPipelineBusy] = useState(false);
+  const location = useLocation();
   const value = useMemo(
     () => ({ pipelineBusy, setPipelineBusy }),
     [pipelineBusy]
@@ -62,18 +67,29 @@ export default function App() {
     <PipelineNavContext.Provider value={value}>
       <div className="min-h-screen bg-base-200">
         <div className="bg-base-100 shadow-sm px-4 py-2 flex flex-wrap justify-center gap-2 sm:gap-4">
-          <Link to="/" className="btn btn-ghost btn-sm">
+          <NavLink to="/" end className={({ isActive }) => navClass(isActive, "btn-primary")}>
             Operador
-          </Link>
-          <Link to="/experto" className="btn btn-ghost btn-sm">
+          </NavLink>
+          <NavLink
+            to="/experto"
+            className={() =>
+              navClass(
+                location.pathname === "/experto" || location.pathname === "/kedb",
+                "btn-secondary"
+              )
+            }
+          >
             Experto KEDB
-          </Link>
-          <Link to="/docs" className="btn btn-ghost btn-sm">
+          </NavLink>
+          <NavLink to="/docs" className={({ isActive }) => navClass(isActive, "btn-accent")}>
             Live Docs
-          </Link>
-          <Link to="/dashboard" className="btn btn-ghost btn-sm">
+          </NavLink>
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) => navClass(isActive, "btn-neutral")}
+          >
             Coordinador
-          </Link>
+          </NavLink>
         </div>
         <Outlet />
       </div>

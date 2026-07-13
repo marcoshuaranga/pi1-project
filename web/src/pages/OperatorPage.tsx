@@ -4,6 +4,7 @@ import {
   newTicketId,
   processTicketViaWs,
   subscribePipelineWs,
+  Solucion,
   TicketResponse,
 } from "../api";
 import { usePipelineNavGuard } from "../App";
@@ -22,6 +23,147 @@ const FACTOR_LABELS: Record<string, string> = {
   criticidad_solicitante: "Criticidad solicitante",
   tipo_incidencia: "Tipo de incidencia",
 };
+
+const PREVIEW_CHARS = 110;
+
+function SolucionCard({
+  solucion,
+  expanded,
+  onToggle,
+  onFeedback,
+  feedbackState,
+  feedbackBusy,
+}: {
+  solucion: Solucion;
+  expanded: boolean;
+  onToggle: () => void;
+  onFeedback: (util: boolean) => void;
+  feedbackState: "util" | "no_util" | null;
+  feedbackBusy: boolean;
+}) {
+  const texto = solucion.solucion?.trim() ?? "";
+  const preview =
+    texto.length > PREVIEW_CHARS ? `${texto.slice(0, PREVIEW_CHARS).trimEnd()}…` : texto;
+  const voted = feedbackState !== null;
+
+  return (
+    <div
+      className={`border rounded-lg p-3 text-sm transition-colors ${
+        expanded ? "border-success/50 bg-success/5" : "border-base-300"
+      }`}
+    >
+      <div className="flex justify-between items-center gap-2">
+        <span className="badge badge-ghost badge-sm">{solucion.tipo}</span>
+        <span className="text-xs font-mono shrink-0">
+          similitud {(solucion.score * 100).toFixed(0)}%
+        </span>
+      </div>
+      <p className="font-medium mt-1">{solucion.titulo || solucion.articulo_o_ticket_id}</p>
+
+      {texto && (
+        <div className="mt-2">
+          {!expanded ? (
+            <div className="rounded-md bg-base-200/60 overflow-hidden">
+              <div className="px-3 pt-2 pb-1">
+                <p className="text-[10px] uppercase tracking-wide text-base-content/50 mb-1">
+                  Solución · vista previa
+                </p>
+                <p className="text-sm text-base-content/70 leading-relaxed line-clamp-2">
+                  {preview}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onToggle}
+                className="w-full flex items-center justify-center gap-1.5 border-t border-base-300/70 bg-base-200/80 px-3 py-2 text-xs font-semibold text-success hover:bg-success/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-success/40"
+                aria-expanded={false}
+              >
+                Ampliar detalle
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="w-3.5 h-3.5"
+                  aria-hidden
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-md border border-success/30 bg-base-100 overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-3 pt-2">
+                <p className="text-[10px] uppercase tracking-wide text-base-content/50">
+                  Solución · detalle
+                </p>
+                <button
+                  type="button"
+                  onClick={onToggle}
+                  className="btn btn-ghost btn-xs text-base-content/60"
+                  aria-expanded={true}
+                >
+                  Ocultar
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="w-3.5 h-3.5"
+                    aria-hidden
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M14.78 11.78a.75.75 0 0 1-1.06 0L10 8.06l-3.72 3.72a.75.75 0 1 1-1.06-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06Z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <p className="px-3 pb-3 pt-1 text-sm text-base-content/80 whitespace-pre-wrap break-words leading-relaxed">
+                {texto}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 mt-2">
+        <button
+          type="button"
+          className={`btn btn-xs ${
+            feedbackState === "util" ? "btn-success" : "btn-outline btn-success"
+          }`}
+          disabled={feedbackBusy || voted}
+          onClick={() => onFeedback(true)}
+        >
+          {feedbackBusy && !voted ? (
+            <span className="loading loading-spinner loading-xs" />
+          ) : null}
+          Útil (HU11)
+        </button>
+        <button
+          type="button"
+          className={`btn btn-xs ${
+            feedbackState === "no_util" ? "btn-error" : "btn-ghost"
+          }`}
+          disabled={feedbackBusy || voted}
+          onClick={() => onFeedback(false)}
+        >
+          No útil
+        </button>
+        {feedbackState === "util" && (
+          <span className="text-xs text-success font-medium">Marcada como útil</span>
+        )}
+        {feedbackState === "no_util" && (
+          <span className="text-xs text-error font-medium">Marcada como no útil</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const PENDING_KEY = "operator-pipeline-pending";
 const RESUME_POLL_MS = 2_000;
@@ -93,6 +235,11 @@ export default function OperatorPage() {
   const [correccion, setCorreccion] = useState("");
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [nuevaSolucion, setNuevaSolucion] = useState("");
+  const [expandedSolucionId, setExpandedSolucionId] = useState<string | null>(null);
+  const [feedbackById, setFeedbackById] = useState<
+    Record<string, "util" | "no_util">
+  >({});
+  const [feedbackBusyId, setFeedbackBusyId] = useState<string | null>(null);
   const [viaWs, setViaWs] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const abortRef = useRef<AbortController | null>(null);
@@ -112,6 +259,10 @@ export default function OperatorPage() {
   const finishWithResult = (ticket: TicketResponse, fromWs: boolean) => {
     clearPending();
     setResult(ticket);
+    setExpandedSolucionId(null);
+    setFeedbackById({});
+    setFeedbackBusyId(null);
+    setFeedbackMsg("");
     setActiveStep(STEPS.length);
     setViaWs(fromWs);
     setStatusMsg(
@@ -274,9 +425,25 @@ export default function OperatorPage() {
   };
 
   const handleFeedback = async (articuloId: string, util: boolean) => {
-    if (!result) return;
-    await api.feedback(result.ticket_id, { articulo_id: articuloId, util });
-    setFeedbackMsg(util ? "¡Gracias por tu retroalimentación!" : "Registrado.");
+    if (!result || feedbackById[articuloId] || feedbackBusyId) return;
+    setFeedbackBusyId(articuloId);
+    setFeedbackMsg("");
+    try {
+      await api.feedback(result.ticket_id, { articulo_id: articuloId, util });
+      setFeedbackById((prev) => ({
+        ...prev,
+        [articuloId]: util ? "util" : "no_util",
+      }));
+      setFeedbackMsg(
+        util
+          ? "Feedback registrado: solución marcada como útil."
+          : "Feedback registrado: solución marcada como no útil."
+      );
+    } catch (err) {
+      setError(`No se pudo registrar el feedback: ${String(err)}`);
+    } finally {
+      setFeedbackBusyId(null);
+    }
   };
 
   const handleNuevaSolucion = async () => {
@@ -425,32 +592,27 @@ export default function OperatorPage() {
               ) : (
                 <div className="space-y-3">
                   {result.soluciones.map((s) => (
-                    <div key={s.articulo_o_ticket_id} className="border rounded-lg p-3 text-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="badge badge-ghost badge-sm">{s.tipo}</span>
-                        <span className="text-xs font-mono">similitud {(s.score * 100).toFixed(0)}%</span>
-                      </div>
-                      <p className="font-medium mt-1">{s.titulo || s.articulo_o_ticket_id}</p>
-                      <p className="text-base-content/70 mt-1 text-xs">{s.solucion}</p>
-                      <div className="flex gap-2 mt-2">
-                        <button
-                          className="btn btn-xs btn-success"
-                          onClick={() => handleFeedback(s.articulo_o_ticket_id, true)}
-                        >
-                          Útil (HU11)
-                        </button>
-                        <button
-                          className="btn btn-xs btn-ghost"
-                          onClick={() => handleFeedback(s.articulo_o_ticket_id, false)}
-                        >
-                          No útil
-                        </button>
-                      </div>
-                    </div>
+                    <SolucionCard
+                      key={s.articulo_o_ticket_id}
+                      solucion={s}
+                      expanded={expandedSolucionId === s.articulo_o_ticket_id}
+                      onToggle={() =>
+                        setExpandedSolucionId((prev) =>
+                          prev === s.articulo_o_ticket_id ? null : s.articulo_o_ticket_id
+                        )
+                      }
+                      onFeedback={(util) => handleFeedback(s.articulo_o_ticket_id, util)}
+                      feedbackState={feedbackById[s.articulo_o_ticket_id] ?? null}
+                      feedbackBusy={feedbackBusyId === s.articulo_o_ticket_id}
+                    />
                   ))}
                 </div>
               )}
-              {feedbackMsg && <p className="text-success text-xs mt-2">{feedbackMsg}</p>}
+              {feedbackMsg && (
+                <div className="alert alert-success text-xs py-2 mt-2">
+                  <span>{feedbackMsg}</span>
+                </div>
+              )}
               <div className="mt-2 border-t pt-3">
                 <p className="text-xs font-semibold">Nueva solución (HU12)</p>
                 <textarea
