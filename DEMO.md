@@ -52,9 +52,9 @@ Impresora Kyocera 7003 no imprime, necesito que la configuren de nuevo
 2. **Categoría** esperada: Impresora Multifuncional (o la ruta completa `Equipos Informáticos > … > Impresora Multifuncional`)
 3. **Confianza** alta (típicamente >80 %)
 4. **Prioridad** Media (sin señales de urgencia institucional)
-5. **Top-5** con similitud %; al menos una solución del tipo:
-   - *«Se configuró impresora predeterminada y se validó con impresión de hoja de prueba…»*
-   - o instalación de driver Kyocera
+5. **Top-5** con similitud %; al ampliar detalle, al menos una solución **operativa** (varios pasos), del tipo:
+   - procedimiento Kyocera 7003i: conectividad → driver/puerto TCP/IP → predeterminada → hoja de prueba
+   - no solo una línea genérica (“se configuró impresora…”)
 
 **Decir (argumento central):**
 
@@ -92,7 +92,7 @@ Usar **uno** solo; no saturar.
 | Campo | Qué decir |
 | :--- | :--- |
 | Título | Configuración de impresora Kyocera TaskAlfa 7003i |
-| Síntoma / causa / solución | El conocimiento consolidado (pasos: driver → predeterminada → hoja de prueba) |
+| Síntoma / causa / solución | Procedimiento consolidado (conectividad, driver KX, puerto TCP/IP, predeterminada, hoja de prueba) |
 | Tickets fuente (HU09) | Badge ~142 — trazabilidad N:1; el artículo no es inventado |
 | Estado | `borrador` — aún no publicado a todos los operadores |
 

@@ -65,6 +65,16 @@ def main() -> int:
     print(f"  tickets_fuente     : {len(art.tickets_fuente)}")
     print(f"  Pendientes totales : {summary['pendientes']}")
 
+    try:
+        from app.pipeline.enrich.reindex import reindex_kyocera_cluster
+
+        n = reindex_kyocera_cluster(
+            ticket_ids=list(summary["articulo"].tickets_fuente)
+        )
+        print(f"  Tickets enriquecidos: {n} (Chroma colección tickets)")
+    except Exception as exc:
+        print(f"  Aviso reindex Kyocera  : {exc}")
+
     if args.with_eval:
         from scripts.seed_demo import seed_evaluation, seed_golden_set_sample
 

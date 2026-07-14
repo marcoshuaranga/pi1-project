@@ -153,6 +153,8 @@ docker compose --profile pipeline run --rm pipeline full
 #    Idempotente: borra borradores Kyocera previos y deja exactamente 1 pendiente limpio.
 docker compose exec api python scripts/seed_demo.py
 # Alternativa: curl -X POST http://localhost:8000/kedb/seed-demo
+# seed-demo también reindexa el clúster Kyocera con resoluciones operativas largas (Escena 1).
+# Si solo necesitas ese reindex: docker compose --profile pipeline run --rm pipeline enrich-kyocera
 
 # Si ya practicaste Escena 3 (artículo validado en RAG/Live Docs), reset completo:
 # docker compose exec api python scripts/reset_demo.py
@@ -243,7 +245,7 @@ En esta versión: F1 macro y Recall@5 (caché precomputada). Kappa no se calcula
 
 | Problema | Acción |
 | :--- | :--- |
-| Sin artículo pendiente / borradores sucios | `curl -X POST http://localhost:8000/kedb/seed-demo` (idempotente: 1 Kyocera limpio) |
+| Top-5 genérico / una línea | `pipeline enrich-kyocera` o `POST /kedb/seed-demo` (reindexa resoluciones enriquecidas) |
 | Tras practicar Escena 3 (artículo ya validado) | `docker compose exec api python scripts/reset_demo.py` |
 | Métricas en 0 | Re-correr `python scripts/seed_demo.py` o `POST /metrics/evaluacion` |
 | WS no conecta | La UI usa REST automáticamente; la demo sigue |

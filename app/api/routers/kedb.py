@@ -105,10 +105,22 @@ async def pendientes():
 
 @router.post("/seed-demo", response_model=KedbArticulo)
 async def seed_demo():
-    """Idempotent Kyocera demo article (DEMO.md Escena 2): one clean borrador."""
+    """Idempotent Kyocera demo article (DEMO.md Escena 2): one clean borrador.
+
+    Also reindexes the Kyocera ticket cluster with enriched resolutions so
+    Escena 1 Top-5 is demo-ready without re-running the full embed pipeline.
+    """
     from app.fixtures.kyocera_demo import ensure_clean_demo_articulo
+    from app.pipeline.enrich.reindex import reindex_kyocera_cluster
 
     articulo, _removed = ensure_clean_demo_articulo(get_store(), refresh_fixture=True)
+    try:
+        await asyncio.to_thread(
+            reindex_kyocera_cluster, ticket_ids=list(articulo.tickets_fuente)
+        )
+    except Exception:
+        # Seed must still return the KEDB borrador if Chroma/embeddings are down.
+        pass
     return articulo
 
 

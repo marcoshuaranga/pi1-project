@@ -24,6 +24,14 @@ def seed_demo_kedb():
     print(f"Demo KEDB article ready: {articulo.articulo_id}")
     print(f"  estado={articulo.estado.value}  titulo={articulo.titulo}")
     print(f"  tickets_fuente={len(articulo.tickets_fuente)}")
+
+    try:
+        from app.pipeline.enrich.reindex import reindex_kyocera_cluster
+
+        n = reindex_kyocera_cluster(ticket_ids=list(articulo.tickets_fuente))
+        print(f"  tickets Chroma enriquecidos: {n}")
+    except Exception as exc:
+        print(f"  aviso: no se pudo reindexar resoluciones Kyocera ({exc})")
     return articulo
 
 

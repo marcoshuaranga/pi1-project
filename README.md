@@ -104,6 +104,8 @@ docker compose --profile pipeline run --rm pipeline extract
 docker compose --profile pipeline run --rm pipeline anonymize
 docker compose --profile pipeline run --rm pipeline ingest
 docker compose --profile pipeline run --rm pipeline embed
+# Solo clúster Kyocera (resoluciones operativas largas para Escena 1):
+docker compose --profile pipeline run --rm pipeline enrich-kyocera
 docker compose --profile pipeline run --rm pipeline full
 ```
 

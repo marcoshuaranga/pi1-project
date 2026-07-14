@@ -8,6 +8,8 @@ import pandas as pd
 
 from app.config import Settings, get_settings
 from app.pipeline.anonymize.anonymizer import Anonymizer
+from app.pipeline.enrich.reindex import CACHE_SUFFIX
+from app.pipeline.enrich.resolutions import SOLUCION_META_MAX, enrich_resolution
 from app.pipeline.ingest.normalize import (
     assign_split,
     extract_sample,
@@ -108,32 +110,54 @@ class IngestionPipeline:
         texts = []
         ids = []
         metadatas = []
+        cache_keys = []
+        enriched_count = 0
         for t in tickets:
-            if not t.tiene_solucion:
+            titulo = t.titulo_anon or ""
+            titulo_l = titulo.lower()
+            is_kyocera_cluster = "kyocera" in titulo_l or "7003" in titulo_l
+            if not t.tiene_solucion and not is_kyocera_cluster:
                 continue
-            text = f"{t.titulo_anon}\n{t.solucion_anon or ''}"
+            enriched = enrich_resolution(
+                titulo=titulo,
+                solucion=t.solucion_anon,
+                categoria=t.categoria_top9,
+                ticket_id=t.ticket_id,
+                force=is_kyocera_cluster and not t.tiene_solucion,
+            )
+            solucion = enriched.solucion[:SOLUCION_META_MAX]
+            if enriched.enriched:
+                enriched_count += 1
+            text = f"{titulo}\n{solucion}"
             texts.append(text)
             ids.append(t.ticket_id)
+            cache_keys.append(
+                f"{t.ticket_id}:{CACHE_SUFFIX}" if enriched.enriched else t.ticket_id
+            )
             metadatas.append(
                 {
                     "categoria": t.categoria_top9 or "",
                     "split": t.split or "train",
-                    "titulo": t.titulo_anon[:500],
-                    "solucion": (t.solucion_anon or "")[:1000],
+                    "titulo": titulo[:500],
+                    "solucion": solucion,
                     "tipo": "ticket",
+                    "enriched": "true" if enriched.enriched else "false",
+                    "enrich_domain": enriched.domain or "",
                 }
             )
 
         batch_size = self.settings.batch_size
         total = 0
         total_batches = (len(texts) + batch_size - 1) // batch_size
+        print(f"Resoluciones enriquecidas para índice: {enriched_count}/{len(texts)}")
         for i in range(0, len(texts), batch_size):
             batch_num = i // batch_size + 1
             batch_texts = texts[i : i + batch_size]
             batch_ids = ids[i : i + batch_size]
             batch_meta = metadatas[i : i + batch_size]
+            batch_keys = cache_keys[i : i + batch_size]
             print(f"Embeddings lote {batch_num}/{total_batches} ({len(batch_ids)} tickets)...")
-            vectors = self.embedder.embed_batch(batch_texts, cache_keys=batch_ids)
+            vectors = self.embedder.embed_batch(batch_texts, cache_keys=batch_keys)
             collection.upsert(
                 ids=batch_ids,
                 embeddings=vectors,

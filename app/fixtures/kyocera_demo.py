@@ -32,17 +32,34 @@ DEMO_ARTICLE_TEMPLATE = {
         "Equipos Informáticos > Equipo de impresión y escaneo > Impresora Multifuncional"
     ),
     "sintoma": (
-        "El usuario no puede imprimir o requiere configurar la impresora "
-        "multifuncional Kyocera 7003 en su equipo."
+        "El usuario no puede imprimir o requiere configurar de nuevo la impresora "
+        "multifuncional Kyocera TaskAlfa 7003i en su estación de trabajo. "
+        "Suele reportarse como “no imprime”, “impresora no disponible” o "
+        "“necesito que la configuren otra vez”, con trabajos en cola o sin salida física."
     ),
     "causa": (
-        "Impresora predeterminada no configurada correctamente, "
-        "o driver de la Kyocera 7003 no instalado."
+        "Cola o puerto TCP/IP incorrecto tras cambio de red/VLAN, driver genérico o "
+        "desactualizado, impresora predeterminada apuntando a una instancia WSD/duplicada, "
+        "o perfil de impresión corrupto en el PC del usuario. En sede, también falla de "
+        "conectividad hacia la IP del activo de impresión."
     ),
     "solucion": (
-        "1. Instalar/verificar el driver de la impresora Kyocera 7003.\n"
-        "2. Configurar la impresora como predeterminada.\n"
-        "3. Validar con hoja de prueba."
+        "1. Verificar conectividad a la IP/hostname de la TaskAlfa 7003i en la VLAN de "
+        "impresión y revisar el panel (sin atasco, tóner OK, equipo online).\n"
+        "2. En el PC: eliminar colas antiguas/WSD; reiniciar el servicio Cola de impresión "
+        "si hay trabajos detenidos.\n"
+        "3. Instalar o reparar el driver oficial Kyocera KX/PCL XL 7003i desde el paquete "
+        "corporativo OITSI (evitar driver genérico de Windows).\n"
+        "4. Crear puerto Standard TCP/IP (Raw 9100) hacia la IP correcta; nombrar la cola "
+        "con convención de sede y marcarla como impresora predeterminada.\n"
+        "5. Ajustar preferencias (A4, dúplex/autenticación según política de sede).\n"
+        "6. Validar con página de prueba de Windows y un documento real del usuario "
+        "(Word/PDF); confirmar salida en la 7003i.\n"
+        "7. Documentar IP, nombre de cola y evidencia de prueba; orientar al usuario a "
+        "seleccionar la impresora correcta en el diálogo de impresión.\n\n"
+        "Si el equipo imprime desde otra estación pero no desde la afectada, reconstruir "
+        "el perfil de impresión (desinstalación limpia + reinstalación del paquete). "
+        "Si hay VPN/remoto, preferir cola publicada en servidor de impresión de sede."
     ),
     "aplicable_a": "Impresoras Kyocera TaskAlfa 7003i en sedes MTC",
 }

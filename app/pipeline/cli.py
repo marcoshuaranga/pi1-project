@@ -16,6 +16,10 @@ def main():
     sub.add_parser("anonymize", help="Anonymize extracted sample")
     sub.add_parser("ingest", help="Normalize and create splits")
     sub.add_parser("embed", help="Generate embeddings in ChromaDB")
+    sub.add_parser(
+        "enrich-kyocera",
+        help="Reindex Kyocera demo cluster with enriched resolutions",
+    )
     sub.add_parser("full", help="Run full pipeline")
 
     args = parser.parse_args()
@@ -44,6 +48,12 @@ def main():
     elif args.command == "embed":
         count = pipeline.run_embeddings()
         print(f"Embeddings generados: {count}")
+
+    elif args.command == "enrich-kyocera":
+        from app.pipeline.enrich.reindex import reindex_kyocera_cluster
+
+        count = reindex_kyocera_cluster()
+        print(f"Kyocera reindexado con resoluciones enriquecidas: {count}")
 
     elif args.command == "full":
         if not raw_path.exists():

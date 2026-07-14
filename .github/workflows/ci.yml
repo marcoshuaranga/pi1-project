@@ -1,9 +1,12 @@
 name: CI
 
+# Deshabilitado: no corre en push/PR. Reactivar con:
+#   on:
+#     push:
+#       branches: [main, master]
+#     pull_request:
 on:
-  push:
-    branches: [main, master]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   test:

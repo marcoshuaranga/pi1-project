@@ -62,6 +62,10 @@ def test_demo_cycle_seed_approve_rag(client, monkeypatch, tmp_path):
         "app.fixtures.kyocera_demo.load_kyocera_ticket_ids",
         lambda **kwargs: ["96044", "95984", "95645", "95439", "94922"] * 28 + ["96044", "95984"],
     )
+    monkeypatch.setattr(
+        "app.pipeline.enrich.reindex.reindex_kyocera_cluster",
+        lambda **kwargs: 142,
+    )
 
     # First seed
     seed = client.post("/kedb/seed-demo")

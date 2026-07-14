@@ -251,7 +251,7 @@ Para mostrar clasificación y RAG **genuinos** (similitud semántica), no un mat
 
 ### ¿Qué debo ver en Escena 1?
 
-Categoría Impresora Multifuncional (o ruta completa), confianza alta, prioridad Media, Top-5 con soluciones tipo “impresora predeterminada / hoja de prueba / driver”.
+Categoría Impresora Multifuncional (o ruta completa), confianza alta, prioridad Media, Top-5 con **resoluciones operativas** (driver/puerto TCP/IP, cola, predeterminada, hoja de prueba) — no stubs de una línea.
 
 ### ¿Qué debo ver en Escena 3?
 
