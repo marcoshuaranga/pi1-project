@@ -3,26 +3,60 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
+
+from app.services.kedb_generation import KedbGenerationPolicy, KedbGenerationStatus
+
+logger = logging.getLogger(__name__)
 
 
 def _generate_kedb_sync(max_articles: int, keyword: str | None) -> dict[str, Any]:
     from app.agents.kedb_generator.agent import KedbGeneratorAgent
 
     generator = KedbGeneratorAgent()
-    if keyword:
-        articulo = generator.generate_from_cluster_keyword(keyword)
-        if not articulo:
-            articulo = generator.generate_demo_fixture()
-        return {"generated": 1, "articulos": [articulo.model_dump(mode="json")]}
 
-    articles = generator.generate_all(max_articles=max_articles)
-    if not articles:
-        articles = [generator.generate_demo_fixture()]
-    return {
-        "generated": len(articles),
-        "articulos": [a.model_dump(mode="json") for a in articles],
+    def generate_primary():
+        if keyword:
+            articulo = generator.generate_from_cluster_keyword(keyword)
+            return articulo
+        return generator.generate_all(max_articles=max_articles)
+
+    outcome = KedbGenerationPolicy(generate_primary, generator.generate_demo_fixture).run()
+    if outcome.status == KedbGenerationStatus.FAILED:
+        if outcome.error:
+            if outcome.primary_error:
+                if outcome.fallback_error is None:
+                    message = (
+                        "KEDB generation failed; fallback returned no article: "
+                        f"primary={outcome.primary_error}"
+                    )
+                else:
+                    message = (
+                        "KEDB generation and fallback both failed: "
+                        f"primary={outcome.primary_error}; fallback={outcome.error}"
+                    )
+            else:
+                message = f"KEDB fallback failed: {outcome.error}"
+            raise RuntimeError(message) from outcome.error
+        raise RuntimeError("KEDB generation failed without an error")
+    if outcome.status == KedbGenerationStatus.EMPTY:
+        return {"generated": 0, "articulos": [], "status": outcome.status.value}
+
+    if outcome.status == KedbGenerationStatus.FALLBACK:
+        logger.warning(
+            "generate_kedb usó fixture de demo%s error=%s",
+            " tras un fallo de generación" if outcome.error else " por resultado vacío",
+            outcome.error,
+        )
+    result = {
+        "generated": len(outcome.articles),
+        "articulos": [a.model_dump(mode="json") for a in outcome.articles],
+        "status": outcome.status.value,
     }
+    if outcome.status == KedbGenerationStatus.FALLBACK:
+        result["fallback"] = "demo_fixture"
+    return result
 
 
 def _run_evaluation_sync() -> dict[str, Any]:
