@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from functools import lru_cache
 from pathlib import Path
 
-from openai import OpenAI, RateLimitError
+from openai import AzureOpenAI, OpenAI, RateLimitError
 
 from app.config import Settings, get_settings
 
@@ -29,7 +29,13 @@ class EmbeddingBackend(ABC):
 class OpenAIBackend(EmbeddingBackend):
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.client = OpenAI(api_key=settings.openai_api_key)
+        self.client = self._build_client()
+
+    def _build_client(self):
+        return OpenAI(api_key=self.settings.openai_api_key)
+
+    def _model_name(self) -> str:
+        return self.settings.embedding_model
 
     @property
     def dimension(self) -> int:
@@ -43,7 +49,7 @@ class OpenAIBackend(EmbeddingBackend):
             for attempt in range(5):
                 try:
                     response = self.client.embeddings.create(
-                        model=self.settings.embedding_model,
+                        model=self._model_name(),
                         input=chunk,
                     )
                     vectors.extend(item.embedding for item in response.data)
@@ -58,6 +64,21 @@ class OpenAIBackend(EmbeddingBackend):
                     wait = 2**attempt
                     time.sleep(wait)
         return vectors
+
+
+class AzureOpenAIBackend(OpenAIBackend):
+    """Same text-embedding-3-small model, served through Azure OpenAI instead of openai.com."""
+
+    def _build_client(self):
+        return AzureOpenAI(
+            api_key=self.settings.azure_openai_api_key,
+            azure_endpoint=self.settings.azure_openai_endpoint,
+            api_version=self.settings.azure_openai_api_version,
+        )
+
+    def _model_name(self) -> str:
+        # Azure addresses models by deployment name, not the raw model id.
+        return self.settings.azure_openai_embedding_deployment or self.settings.embedding_model
 
 
 class LocalBackend(EmbeddingBackend):
@@ -89,6 +110,8 @@ def get_embedding_backend(settings: Settings | None = None) -> EmbeddingBackend:
     settings = settings or get_settings()
     if settings.embedding_provider == "local":
         return LocalBackend(settings)
+    if settings.embedding_provider == "azure":
+        return AzureOpenAIBackend(settings)
     return OpenAIBackend(settings)
 
 
