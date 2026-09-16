@@ -23,6 +23,36 @@ services:
       timeout: 3s
       retries: 5
 
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    ports:
+      - "4000:4000"
+    restart: on-failure
+    env_file:
+      - .env
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          cpus: "0.10"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 10
+        window: 120s
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   chromadb:
     image: ghcr.io/chroma-core/chroma:0.5.23
     ports:
@@ -35,10 +65,10 @@ services:
       - ANONYMIZED_TELEMETRY=FALSE
     deploy:
       resources:
-        # Consultas vectoriales concurrentes (API + worker); muestra top-9 no necesita más RAM
+        # Batched KEDB clustering still loads HNSW; 3G reduces disconnects vs dumping all embeddings
         limits:
           cpus: "2.00"
-          memory: 2G
+          memory: 3G
         reservations:
           cpus: "0.50"
           memory: 512M
@@ -68,16 +98,21 @@ services:
       - DATA_PROCESSED_PATH=/data/processed
       - KEDB_DB_PATH=/data/kedb/kedb.db
       - KEDB_DOCS_PATH=/data/kedb/articles
+      - LITELLM_BASE_URL=http://litellm:4000
     volumes:
+      - ./app:/app/app
       - ./data/processed:/data/processed
       - ./data/raw:/data/raw
       - ./data/fixtures:/data/fixtures
       - kedb_data:/data/kedb
       - ./data/kedb/articles:/data/kedb/articles
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
     depends_on:
       chromadb:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      litellm:
         condition: service_healthy
     deploy:
       resources:
@@ -118,6 +153,7 @@ services:
       - OPENBLAS_NUM_THREADS=4
       - MKL_NUM_THREADS=4
       - NUMEXPR_NUM_THREADS=4
+      - LITELLM_BASE_URL=http://litellm:4000
     volumes:
       - ./data/processed:/data/processed
       - ./data/raw:/data/raw
@@ -128,6 +164,8 @@ services:
       chromadb:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      litellm:
         condition: service_healthy
     command: ["arq", "app.jobs.worker.WorkerSettings"]
     deploy:
