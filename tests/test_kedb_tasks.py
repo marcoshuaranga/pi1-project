@@ -3,6 +3,7 @@
 import pytest
 
 from app.jobs import tasks
+from app.services.kedb_generation import KedbGenerationOutcome, KedbGenerationStatus
 
 
 class FakeArticle:
@@ -14,38 +15,22 @@ class FakeArticle:
 
 
 class FakeGenerator:
-    _default_fallback = object()
-
     def __init__(
         self,
-        articles=None,
-        failure: Exception | None = None,
-        fallback=_default_fallback,
+        outcome: KedbGenerationOutcome,
     ):
-        self.articles = articles
-        self.failure = failure
-        self.fallback = (
-            FakeArticle("demo") if fallback is self._default_fallback else fallback
-        )
+        self.outcome = outcome
 
-    def generate_all(self, max_articles):
-        if self.failure:
-            raise self.failure
-        return self.articles
-
-    def generate_from_cluster_keyword(self, keyword):
-        return self.articles
-
-    def generate_demo_fixture(self):
-        if isinstance(self.fallback, Exception):
-            raise self.fallback
-        return self.fallback
+    def generate(self, max_articles, keyword):
+        return self.outcome
 
 
 def test_task_marks_generated_result(monkeypatch):
     monkeypatch.setattr(
         "app.agents.kedb_generator.agent.KedbGeneratorAgent",
-        lambda: FakeGenerator([FakeArticle("generated")]),
+        lambda: FakeGenerator(
+            KedbGenerationOutcome(KedbGenerationStatus.GENERATED, [FakeArticle("generated")])
+        ),
     )
 
     result = tasks._generate_kedb_sync(5, None)
@@ -60,7 +45,13 @@ def test_task_marks_generated_result(monkeypatch):
 def test_task_marks_legacy_demo_fallback(monkeypatch):
     monkeypatch.setattr(
         "app.agents.kedb_generator.agent.KedbGeneratorAgent",
-        lambda: FakeGenerator([], failure=RuntimeError("cluster unavailable")),
+        lambda: FakeGenerator(
+            KedbGenerationOutcome(
+                KedbGenerationStatus.FALLBACK,
+                [FakeArticle("demo")],
+                error=RuntimeError("cluster unavailable"),
+            )
+        ),
     )
 
     result = tasks._generate_kedb_sync(5, None)
@@ -74,8 +65,13 @@ def test_task_raises_when_generation_and_fallback_fail(monkeypatch):
     monkeypatch.setattr(
         "app.agents.kedb_generator.agent.KedbGeneratorAgent",
         lambda: FakeGenerator(
-            failure=RuntimeError("cluster unavailable"),
-            fallback=RuntimeError("fixture unavailable"),
+            KedbGenerationOutcome(
+                KedbGenerationStatus.FAILED,
+                [],
+                error=RuntimeError("fixture unavailable"),
+                primary_error=RuntimeError("cluster unavailable"),
+                fallback_error=RuntimeError("fixture unavailable"),
+            )
         ),
     )
 
@@ -89,7 +85,13 @@ def test_task_raises_when_generation_and_fallback_fail(monkeypatch):
 def test_task_reports_fallback_failure_when_primary_is_empty(monkeypatch):
     monkeypatch.setattr(
         "app.agents.kedb_generator.agent.KedbGeneratorAgent",
-        lambda: FakeGenerator([], fallback=RuntimeError("fixture unavailable")),
+        lambda: FakeGenerator(
+            KedbGenerationOutcome(
+                KedbGenerationStatus.FAILED,
+                [],
+                error=RuntimeError("fixture unavailable"),
+            )
+        ),
     )
 
     with pytest.raises(RuntimeError, match="KEDB fallback failed: fixture unavailable"):
@@ -99,7 +101,14 @@ def test_task_reports_fallback_failure_when_primary_is_empty(monkeypatch):
 def test_task_reports_primary_failure_when_fallback_is_empty(monkeypatch):
     monkeypatch.setattr(
         "app.agents.kedb_generator.agent.KedbGeneratorAgent",
-        lambda: FakeGenerator(failure=RuntimeError("cluster unavailable"), fallback=None),
+        lambda: FakeGenerator(
+            KedbGenerationOutcome(
+                KedbGenerationStatus.FAILED,
+                [],
+                error=RuntimeError("cluster unavailable"),
+                primary_error=RuntimeError("cluster unavailable"),
+            )
+        ),
     )
 
     with pytest.raises(
@@ -113,7 +122,15 @@ def test_task_reports_dual_failure_when_both_paths_raise_same_exception(monkeypa
     shared_error = RuntimeError("shared unavailable")
     monkeypatch.setattr(
         "app.agents.kedb_generator.agent.KedbGeneratorAgent",
-        lambda: FakeGenerator(failure=shared_error, fallback=shared_error),
+        lambda: FakeGenerator(
+            KedbGenerationOutcome(
+                KedbGenerationStatus.FAILED,
+                [],
+                error=shared_error,
+                primary_error=shared_error,
+                fallback_error=shared_error,
+            )
+        ),
     )
 
     with pytest.raises(

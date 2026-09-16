@@ -6,7 +6,7 @@ import asyncio
 import logging
 from typing import Any
 
-from app.services.kedb_generation import KedbGenerationPolicy, KedbGenerationStatus
+from app.services.kedb_generation import KedbGenerationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -15,14 +15,7 @@ def _generate_kedb_sync(max_articles: int, keyword: str | None) -> dict[str, Any
     from app.agents.kedb_generator.agent import KedbGeneratorAgent
 
     generator = KedbGeneratorAgent()
-
-    def generate_primary():
-        if keyword:
-            articulo = generator.generate_from_cluster_keyword(keyword)
-            return articulo
-        return generator.generate_all(max_articles=max_articles)
-
-    outcome = KedbGenerationPolicy(generate_primary, generator.generate_demo_fixture).run()
+    outcome = generator.generate(max_articles=max_articles, keyword=keyword)
     if outcome.status == KedbGenerationStatus.FAILED:
         if outcome.error:
             if outcome.primary_error:

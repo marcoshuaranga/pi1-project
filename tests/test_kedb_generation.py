@@ -3,6 +3,37 @@
 from app.services.kedb_generation import KedbGenerationPolicy, KedbGenerationStatus
 
 
+def test_generator_owns_primary_selection_and_fallback_policy():
+    from app.agents.kedb_generator.agent import KedbGeneratorAgent
+
+    generator = object.__new__(KedbGeneratorAgent)
+    calls = []
+    generator.generate_from_cluster_keyword = lambda keyword: calls.append(keyword) or "article"
+    generator.generate_all = lambda max_articles: calls.append(max_articles) or []
+    generator.generate_demo_fixture = lambda: "fallback"
+
+    outcome = generator.generate(max_articles=7, keyword="kyocera")
+
+    assert outcome.status == KedbGenerationStatus.GENERATED
+    assert outcome.articles == ["article"]
+    assert calls == ["kyocera"]
+
+
+def test_generator_uses_all_generation_and_falls_back_when_empty():
+    from app.agents.kedb_generator.agent import KedbGeneratorAgent
+
+    generator = object.__new__(KedbGeneratorAgent)
+    calls = []
+    generator.generate_all = lambda max_articles: calls.append(max_articles) or []
+    generator.generate_demo_fixture = lambda: "fallback"
+
+    outcome = generator.generate(max_articles=7)
+
+    assert outcome.status == KedbGenerationStatus.FALLBACK
+    assert outcome.articles == ["fallback"]
+    assert calls == [7]
+
+
 def test_policy_reports_generated_articles():
     outcome = KedbGenerationPolicy(lambda: ["article"], lambda: "fallback").run()
 

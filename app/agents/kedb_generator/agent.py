@@ -11,6 +11,7 @@ import numpy as np
 
 from app.config import Settings, get_settings
 from app.schemas import KedbArticulo, KedbEstado
+from app.services.kedb_generation import KedbGenerationOutcome, KedbGenerationPolicy
 from app.services.llm import extract_json, get_chat_model
 from app.storage.kedb_store.store import KedbStore, new_articulo_id
 from app.storage.vector_db.client import get_tickets_collection
@@ -251,6 +252,18 @@ Responde SOLO con JSON válido."""
             return None
         cluster = {"cluster_id": 0, "tickets": matching, "size": len(matching)}
         return self.synthesize_article(cluster)
+
+    def generate(
+        self, max_articles: int = 50, keyword: str | None = None
+    ) -> KedbGenerationOutcome:
+        """Run primary KEDB generation and the explicit demo fallback policy."""
+        if keyword:
+            def primary():
+                return self.generate_from_cluster_keyword(keyword)
+        else:
+            def primary():
+                return self.generate_all(max_articles=max_articles)
+        return KedbGenerationPolicy(primary, self.generate_demo_fixture).run()
 
     def generate_all(self, max_articles: int = 50) -> list[KedbArticulo]:
         """Prefer metadata keyword clusters; fall back to sampled HDBSCAN."""
