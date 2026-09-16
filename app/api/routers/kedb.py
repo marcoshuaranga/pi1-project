@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from app.agents.rag.agent import RAGAgent
 from app.jobs.redis import get_redis_pool
 from app.schemas import JobEnqueueResponse, KedbArticulo, KedbArticuloUpdate, KedbEstado
+from app.services.kedb_publisher import KedbPublisher
 from app.storage.kedb_store.store import KedbStore
 
 router = APIRouter(prefix="/kedb", tags=["kedb"])
@@ -24,21 +25,8 @@ def get_rag() -> RAGAgent:
     return RAGAgent()
 
 
-def _publish_and_index(articulo: KedbArticulo) -> None:
-    """Markdown export + Chroma upsert — keep off the API event loop."""
-    get_store().publish_markdown(articulo)
-    texto = f"{articulo.titulo}\n{articulo.sintoma}\n{articulo.solucion}"
-    get_rag().index_articulo(
-        articulo.articulo_id,
-        texto,
-        {
-            "titulo": articulo.titulo,
-            "solucion": articulo.solucion,
-            "categoria": articulo.categoria,
-            "estado": "validado",
-            "tipo": "kedb",
-        },
-    )
+def get_publisher() -> KedbPublisher:
+    return KedbPublisher(get_store(), get_rag())
 
 
 @router.post("/generate", response_model=JobEnqueueResponse, status_code=202)
@@ -86,8 +74,7 @@ async def update_articulo(articulo_id: str, body: KedbArticuloUpdate):
     articulo = get_store().update(articulo_id, body)
     if not articulo:
         raise HTTPException(status_code=404, detail="Artículo no encontrado")
-    if articulo.estado == KedbEstado.VALIDADO:
-        await asyncio.to_thread(_publish_and_index, articulo)
+    await asyncio.to_thread(get_publisher().publish, articulo)
     return articulo
 
 
