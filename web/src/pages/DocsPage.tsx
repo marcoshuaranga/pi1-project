@@ -44,10 +44,12 @@ export default function DocsPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4">
-      <div className="navbar bg-accent text-accent-content rounded-lg mb-4 px-4 shadow">
-        <span className="text-lg font-bold">Live Docs — KEDB</span>
-        <span className="ml-4 badge badge-ghost">{docs.length} artículos</span>
-        <div className="ml-auto flex gap-2">
+      <div className="navbar page-header bg-accent text-accent-content rounded-lg mb-4 px-4 shadow">
+        <div className="page-header-title">
+          <span className="text-lg font-bold">Live Docs — KEDB</span>
+          <span className="badge badge-ghost">{docs.length} artículos</span>
+        </div>
+        <div className="page-header-actions">
           <select
             className="select select-sm select-bordered text-base-content"
             value={filtro}

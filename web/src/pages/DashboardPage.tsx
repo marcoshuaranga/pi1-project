@@ -64,7 +64,7 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-4">
-      <div className="navbar bg-neutral text-neutral-content rounded-lg mb-4 px-4 shadow">
+      <div className="navbar page-header bg-neutral text-neutral-content rounded-lg mb-4 px-4 shadow">
         <span className="text-lg font-bold">Tablero del Coordinador (HU15)</span>
       </div>
 

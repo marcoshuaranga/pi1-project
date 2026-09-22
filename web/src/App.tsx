@@ -19,12 +19,23 @@ export function usePipelineNavGuard() {
 const LEAVE_MSG =
   "El pipeline sigue ejecutándose. Si sales, puedes volver después para ver el resultado. ¿Cambiar de página?";
 
-function navClass(isActive: boolean, activeTone: string) {
-  return `btn btn-sm ${isActive ? activeTone : "btn-ghost"}`;
+function navClass(isActive: boolean) {
+  return `app-nav-link ${isActive ? "app-nav-link-active" : ""}`;
 }
+
+type Theme = "light" | "dark";
+const THEME_KEY = "oitsi-theme";
 
 export default function App() {
   const [pipelineBusy, setPipelineBusy] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem("oitsi-sidebar-collapsed") === "true"
+  );
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem(THEME_KEY);
+    return saved === "dark" ? "dark" : "light";
+  });
   const location = useLocation();
   const value = useMemo(
     () => ({ pipelineBusy, setPipelineBusy }),
@@ -63,35 +74,124 @@ export default function App() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [pipelineBusy]);
 
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((current) => (current === "light" ? "dark" : "light"));
+  const toggleSidebar = () => {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      localStorage.setItem("oitsi-sidebar-collapsed", String(next));
+      return next;
+    });
+  };
+
   return (
     <PipelineNavContext.Provider value={value}>
-      <div className="min-h-screen bg-base-200">
-        <div className="bg-base-100 shadow-sm px-4 py-2 flex flex-wrap justify-center gap-2 sm:gap-4">
-          <NavLink to="/" end className={({ isActive }) => navClass(isActive, "btn-primary")}>
-            Operador
-          </NavLink>
-          <NavLink
-            to="/experto"
-            className={() =>
-              navClass(
-                location.pathname === "/experto" || location.pathname === "/kedb",
-                "btn-secondary"
-              )
-            }
-          >
-            Experto KEDB
-          </NavLink>
-          <NavLink to="/docs" className={({ isActive }) => navClass(isActive, "btn-accent")}>
-            Live Docs
-          </NavLink>
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) => navClass(isActive, "btn-neutral")}
-          >
-            Coordinador
-          </NavLink>
-        </div>
-        <Outlet />
+      <div className={`app-shell ${sidebarCollapsed ? "app-shell-collapsed" : ""}`}>
+        <button
+          type="button"
+          className={`app-nav-backdrop ${mobileNavOpen ? "app-nav-backdrop-visible" : ""}`}
+          onClick={() => setMobileNavOpen(false)}
+          aria-label="Cerrar navegación"
+        />
+        <aside className={`app-sidebar ${mobileNavOpen ? "app-sidebar-mobile-open" : ""}`}>
+          <div className="app-brand">
+            <div className="app-brand-mark">O</div>
+            <div>
+              <p className="app-brand-name">OITSI</p>
+              <p className="app-brand-subtitle">Mesa de ayuda inteligente</p>
+            </div>
+          </div>
+
+          <div className="app-sidebar-heading">
+            <div className="app-sidebar-label">Espacios de trabajo</div>
+            <button
+              type="button"
+              className="sidebar-collapse-button"
+              onClick={toggleSidebar}
+              aria-label={sidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
+              title={sidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
+            >
+              <span className={`sidebar-collapse-icon ${sidebarCollapsed ? "is-collapsed" : ""}`} />
+            </button>
+          </div>
+          <nav className="app-nav" aria-label="Navegación principal">
+            <NavLink to="/" end className={({ isActive }) => navClass(isActive)} onClick={() => setMobileNavOpen(false)}>
+              <span className="app-nav-icon">⌁</span>
+              <span>Operador</span>
+              <span className="app-nav-arrow">›</span>
+            </NavLink>
+            <NavLink
+              to="/experto"
+              className={() =>
+                navClass(location.pathname === "/experto" || location.pathname === "/kedb")
+              }
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <span className="app-nav-icon">✦</span>
+              <span>Experto KEDB</span>
+              <span className="app-nav-arrow">›</span>
+            </NavLink>
+            <NavLink to="/docs" className={({ isActive }) => navClass(isActive)} onClick={() => setMobileNavOpen(false)}>
+              <span className="app-nav-icon">▤</span>
+              <span>Live Docs</span>
+              <span className="app-nav-arrow">›</span>
+            </NavLink>
+            <NavLink to="/dashboard" className={({ isActive }) => navClass(isActive)} onClick={() => setMobileNavOpen(false)}>
+              <span className="app-nav-icon">◒</span>
+              <span>Coordinador</span>
+              <span className="app-nav-arrow">›</span>
+            </NavLink>
+          </nav>
+
+          <div className="app-sidebar-footer">
+            <button type="button" className="theme-toggle" onClick={toggleTheme}>
+              <span className="theme-toggle-icon">{theme === "light" ? "☾" : "☀"}</span>
+              <span>{theme === "light" ? "Modo oscuro" : "Modo claro"}</span>
+              <span className="theme-toggle-state">{theme === "light" ? "OFF" : "ON"}</span>
+            </button>
+            <div className="app-system-status">
+              <span className="app-status-dot" />
+              <div>
+                <p>Sistema operativo</p>
+                <span>Todos los servicios activos</span>
+              </div>
+            </div>
+            <p className="app-version">RAG + KEDB · v0.1</p>
+          </div>
+        </aside>
+
+        <main className="app-main">
+          <header className="app-mobile-header">
+            <button
+              type="button"
+              className="mobile-menu-toggle"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Abrir navegación"
+            >
+              ☰
+            </button>
+            <div className="app-brand">
+              <div className="app-brand-mark">O</div>
+              <div>
+                <p className="app-brand-name">OITSI</p>
+                <p className="app-brand-subtitle">Mesa de ayuda</p>
+              </div>
+            </div>
+            <div className="app-mobile-actions">
+              <button type="button" className="mobile-theme-toggle" onClick={toggleTheme} aria-label="Cambiar tema">
+                {theme === "light" ? "☾" : "☀"}
+              </button>
+              <span className="app-status-pill"><span className="app-status-dot" /> En línea</span>
+            </div>
+          </header>
+          <div className="app-content">
+            <Outlet />
+          </div>
+        </main>
       </div>
     </PipelineNavContext.Provider>
   );
