@@ -43,3 +43,6 @@ web/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Other
+.codeboarding
