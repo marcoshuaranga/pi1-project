@@ -8,6 +8,7 @@ import {
   TicketResponse,
 } from "../api";
 import { usePipelineNavGuard } from "../App";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const STEPS = [
   "C1 Anonimización",
@@ -223,6 +224,9 @@ function stepIndexForAgent(agente?: string): number {
 
 export default function OperatorPage() {
   const { setPipelineBusy } = usePipelineNavGuard();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const whatsappText = (location.state as { whatsappText?: string } | null)?.whatsappText;
   const [texto, setTexto] = useState(
     "Impresora Kyocera 7003 no imprime, necesito que la configuren de nuevo"
   );
@@ -365,15 +369,21 @@ export default function OperatorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only resume
   }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (submittedText = texto) => {
+    const text = submittedText.trim();
+    if (text.length < 5) {
+      setError("Describe el problema con al menos 5 caracteres.");
+      return;
+    }
     abortRef.current?.abort();
     resumeAbortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
 
     const ticketId = newTicketId();
-    writePending({ ticketId, texto, startedAt: Date.now(), activeStep: 0 });
+    writePending({ ticketId, texto: text, startedAt: Date.now(), activeStep: 0 });
 
+    setTexto(text);
     setLoading(true);
     setResuming(false);
     setPendingTicketId(ticketId);
@@ -384,7 +394,7 @@ export default function OperatorPage() {
     setFeedbackMsg("");
     setStatusMsg(`Pipeline en curso (${ticketId})…`);
     try {
-      const res = await processTicketViaWs(texto, {
+      const res = await processTicketViaWs(text, {
         ticketId,
         signal: ac.signal,
         onEvent: (evento) => {
@@ -402,7 +412,7 @@ export default function OperatorPage() {
       }
       try {
         setActiveStep(0);
-        const res = await api.submitTicket(texto);
+        const res = await api.submitTicket(text);
         if (ac.signal.aborted) return;
         finishWithResult(res, false);
       } catch (err) {
@@ -416,6 +426,15 @@ export default function OperatorPage() {
       }
     }
   };
+
+  useEffect(() => {
+    if (!whatsappText || readPending()) return;
+    setTexto(whatsappText);
+    navigate(".", { replace: true, state: null });
+    void handleSubmit(whatsappText);
+    // The WhatsApp handoff is intentionally consumed once on page entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [whatsappText]);
 
   const handleCorreccion = async () => {
     if (!result || !correccion) return;

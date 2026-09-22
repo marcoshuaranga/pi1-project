@@ -119,6 +119,15 @@ export default function App() {
             </button>
           </div>
           <nav className="app-nav" aria-label="Navegación principal">
+            <NavLink
+              to="/whatsapp"
+              className={({ isActive }) => navClass(isActive)}
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <span className="app-nav-icon">◉</span>
+              <span>WhatsApp</span>
+              <span className="app-nav-arrow">›</span>
+            </NavLink>
             <NavLink to="/" end className={({ isActive }) => navClass(isActive)} onClick={() => setMobileNavOpen(false)}>
               <span className="app-nav-icon">⌁</span>
               <span>Operador</span>

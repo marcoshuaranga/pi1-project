@@ -6,6 +6,7 @@ import OperatorPage from "./pages/OperatorPage";
 import ExpertPage from "./pages/ExpertPage";
 import DashboardPage from "./pages/DashboardPage";
 import DocsPage from "./pages/DocsPage";
+import WhatsAppPage from "./pages/WhatsAppPage";
 import "./index.css";
 
 const router = createBrowserRouter([
@@ -14,6 +15,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <OperatorPage /> },
+      { path: "whatsapp", element: <WhatsAppPage /> },
       { path: "experto", element: <ExpertPage /> },
       { path: "kedb", element: <ExpertPage /> },
       { path: "docs", element: <DocsPage /> },
