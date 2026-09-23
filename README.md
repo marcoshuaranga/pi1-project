@@ -85,9 +85,10 @@ curl -s http://localhost:8000/kedb/pendientes
 ## Pantallas
 
 - **Operador** (`/`) — MVP: HU01, HU02 ✅, HU04, HU06, HU07 ✅ (+ extras UI: HU03, HU05, HU11, HU12)
+- **WhatsApp** (`/whatsapp`) — simulación de canal de entrada alternativo; envía el transcript al flujo del Operador
 - **Experto KEDB** (`/experto`) — MVP: HU09 ✅, HU10 (editar / aprobar / rechazar), HU14
 - **Live Docs** (`/docs`) — proyección Markdown de artículos validados
-- **Coordinador** (`/dashboard`) — Fase 2: HU15, HU16, HU17 (esqueleto)
+- **Coordinador** (`/dashboard`) — HU15, HU16, HU17. Ya consume datos reales de `/metrics/dashboard` y `/metrics/evaluacion` (no es solo un esqueleto de Fase 2, como decía una versión anterior de este documento)
 
 ### Historias adelantadas al MVP (hechas)
 

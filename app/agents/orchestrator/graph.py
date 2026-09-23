@@ -76,6 +76,12 @@ class Orchestrator:
             tid = state["ticket_id"]
             self._emit(AgenteTipo.ORQUESTADOR, tid, EventoTipo.INICIO, {"texto": state["texto"]})
             result = self.anonymizer.anonymize(state["texto"])
+            # Anonymization has no dedicated AgenteTipo (it's C1/data-layer, not
+            # one of the 5 domain agents) so it's attributed to ORQUESTADOR like
+            # its INICIO above. This FIN pairs with that INICIO for this node;
+            # process_ticket emits a separate ORQUESTADOR FIN for the whole
+            # pipeline's completion after the rag node runs.
+            self._emit(AgenteTipo.ORQUESTADOR, tid, EventoTipo.FIN, salida={"texto_anon": result.text})
             return {"texto_anon": result.text}
 
         def classify_node(state: PipelineState) -> dict:

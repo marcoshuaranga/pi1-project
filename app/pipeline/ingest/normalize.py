@@ -45,9 +45,16 @@ def parse_date(value) -> datetime | None:
         return None
 
 
-def assign_split(fecha: datetime | None) -> str:
+def assign_split(fecha: datetime | None) -> str | None:
+    """PRD §4.2 temporal split: train mar-2024–may-2025, eval jun-sep 2025, holdout oct-2025+.
+
+    Returns None for tickets without a date or outside the designed range,
+    so callers can exclude them instead of silently defaulting to "train".
+    """
     if not fecha:
-        return "train"
+        return None
+    if fecha < datetime(2024, 3, 1):
+        return None
     if fecha < datetime(2025, 6, 1):
         return "train"
     if fecha < datetime(2025, 10, 1):
