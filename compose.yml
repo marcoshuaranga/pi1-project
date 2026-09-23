@@ -106,7 +106,7 @@ services:
       - ./data/fixtures:/data/fixtures
       - kedb_data:/data/kedb
       - ./data/kedb/articles:/data/kedb/articles
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
+    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
     depends_on:
       chromadb:
         condition: service_healthy
@@ -167,7 +167,7 @@ services:
         condition: service_healthy
       litellm:
         condition: service_healthy
-    command: ["arq", "app.jobs.worker.WorkerSettings"]
+    command: ["uv", "run", "arq", "app.jobs.worker.WorkerSettings"]
     deploy:
       resources:
         # max_jobs=1: un job pesado (HDBSCAN/eval); 4G+4CPU es el punto eficiente en demo local
@@ -233,7 +233,7 @@ services:
     depends_on:
       chromadb:
         condition: service_healthy
-    entrypoint: ["python", "-m", "app.pipeline.cli"]
+    entrypoint: ["uv", "run", "python", "-m", "app.pipeline.cli"]
     profiles:
       - pipeline
     deploy:

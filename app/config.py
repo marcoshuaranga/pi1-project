@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # falls back to embedding_model if left blank.
     azure_openai_embedding_deployment: str = ""
     llm_provider: str = (
-        "openai"  # openai | anthropic | litellm | ... (any provider init_chat_model supports)
+        "litellm"  # openai | anthropic | litellm | ... (any provider init_chat_model supports)
     )
     llm_model: str = "gpt-4o-mini"
     batch_size: int = 100

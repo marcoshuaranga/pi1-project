@@ -1,0 +1,120 @@
+# Standalone dev stack: hot reload for api and web, no rebuild on code
+# changes. Shared infra services are pulled in via `extends` so their
+# config lives only in compose.yml — nothing here is a copy of it.
+#
+# Usage:
+#   docker compose -f compose.dev.yml up --build
+#
+# extends does not carry over depends_on/links/volumes_from (Compose Spec
+# restriction), so those are re-declared by hand below where needed.
+
+services:
+  redis:
+    extends:
+      file: compose.yml
+      service: redis
+
+  chromadb:
+    extends:
+      file: compose.yml
+      service: chromadb
+
+  litellm:
+    extends:
+      file: compose.yml
+      service: litellm
+
+  worker:
+    extends:
+      file: compose.yml
+      service: worker
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+
+  pipeline:
+    extends:
+      file: compose.yml
+      service: pipeline
+    depends_on:
+      chromadb:
+        condition: service_healthy
+
+  # api and web differ enough from prod (build, command, ports) that
+  # extending them would just re-trigger the merge quirks extends is meant
+  # to avoid, so they're defined directly instead of extended.
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    restart: on-failure
+    env_file:
+      - .env
+    environment:
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATA_PROCESSED_PATH=/data/processed
+      - KEDB_DB_PATH=/data/kedb/kedb.db
+      - KEDB_DOCS_PATH=/data/kedb/articles
+      - LITELLM_BASE_URL=http://litellm:4000
+    volumes:
+      - ./app:/app/app
+      - ./scripts:/app/scripts
+      - ./tests:/app/tests
+      - ./data/processed:/data/processed
+      - ./data/raw:/data/raw
+      - ./data/fixtures:/data/fixtures
+      - kedb_data:/data/kedb
+      - ./data/kedb/articles:/data/kedb/articles
+    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    restart: on-failure
+    environment:
+      - VITE_PROXY_TARGET=http://api:8000
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      # 127.0.0.1, not localhost: Alpine's wget tries ::1 first and vite
+      # only binds 0.0.0.0, so "localhost" gets connection refused.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  chroma_data:
+  kedb_data:
