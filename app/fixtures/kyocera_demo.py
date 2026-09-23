@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.config import get_settings
@@ -25,6 +25,7 @@ _REPO_FIXTURE = _REPO_ROOT / "data" / "fixtures" / "kyocera_demo_tickets.json"
 
 def _fixture_candidates() -> list[Path]:
     return [_DATA_FIXTURE, _PACKAGE_FIXTURE, _REPO_FIXTURE]
+
 
 DEMO_ARTICLE_TEMPLATE = {
     "titulo": "Configuración de impresora Kyocera TaskAlfa 7003i",
@@ -236,7 +237,7 @@ def build_demo_articulo(
         causa=DEMO_ARTICLE_TEMPLATE["causa"],
         solucion=DEMO_ARTICLE_TEMPLATE["solucion"],
         tickets_fuente=ids,
-        fecha_generacion=datetime.now(timezone.utc),
+        fecha_generacion=datetime.now(UTC),
         estado=KedbEstado.BORRADOR,
         aplicable_a=DEMO_ARTICLE_TEMPLATE["aplicable_a"],
     )
@@ -275,12 +276,9 @@ def ensure_clean_demo_articulo(
     )
     removed = 0
     for art in store.pendientes():
-        if _is_demo_kyocera_borrador(art):
-            if store.delete(art.articulo_id):
-                removed += 1
-                logger.info(
-                    "Removed demo borrador %s (%s)", art.articulo_id, art.titulo[:60]
-                )
+        if _is_demo_kyocera_borrador(art) and store.delete(art.articulo_id):
+            removed += 1
+            logger.info("Removed demo borrador %s (%s)", art.articulo_id, art.titulo[:60])
 
     articulo = build_demo_articulo(ticket_ids=ids)
     store.create(articulo)
@@ -331,9 +329,7 @@ def reset_demo_state(
                 except OSError:
                     logger.warning("No se pudo borrar %s", path)
 
-    articulo, _ = ensure_clean_demo_articulo(
-        store, refresh_fixture=refresh_fixture
-    )
+    articulo, _ = ensure_clean_demo_articulo(store, refresh_fixture=refresh_fixture)
     # ensure_clean also removes borradores; we already cleared all Kyocera — count is fine
     return {
         "removed_db": removed_db,

@@ -1,7 +1,7 @@
 """C2 — Ingestion: normalize, split, embed, load ChromaDB."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -131,9 +131,7 @@ class IngestionPipeline:
             text = f"{titulo}\n{solucion}"
             texts.append(text)
             ids.append(t.ticket_id)
-            cache_keys.append(
-                f"{t.ticket_id}:{CACHE_SUFFIX}" if enriched.enriched else t.ticket_id
-            )
+            cache_keys.append(f"{t.ticket_id}:{CACHE_SUFFIX}" if enriched.enriched else t.ticket_id)
             metadatas.append(
                 {
                     "categoria": t.categoria_top9 or "",
@@ -169,7 +167,7 @@ class IngestionPipeline:
 
         manifest = {
             "total_embedded": total,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "provider": self.settings.embedding_provider,
             "model": self.settings.embedding_model,
         }

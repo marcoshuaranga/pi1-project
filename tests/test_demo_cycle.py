@@ -24,8 +24,8 @@ def test_load_kyocera_fixture_has_cluster_size():
 
 def test_demo_cycle_seed_approve_rag(client, monkeypatch, tmp_path):
     """Escena 2→3: seed fixture, approve indexes KEDB, ticket retrieve includes it."""
-    from app.api.routers import kedb as kedb_router
     from app.api.deps import get_orchestrator
+    from app.api.routers import kedb as kedb_router
 
     db_path = tmp_path / "demo_kedb.db"
     docs_path = tmp_path / "articles"
@@ -123,7 +123,10 @@ def test_demo_cycle_seed_approve_rag(client, monkeypatch, tmp_path):
     assert ticket.status_code == 200
     data = ticket.json()
     assert data["prioridad"] == "Media"
-    assert any(s["tipo"] == "kedb" and s["articulo_o_ticket_id"] == articulo["articulo_id"] for s in data["soluciones"])
+    assert any(
+        s["tipo"] == "kedb" and s["articulo_o_ticket_id"] == articulo["articulo_id"]
+        for s in data["soluciones"]
+    )
 
 
 def test_build_demo_articulo_uses_ids():

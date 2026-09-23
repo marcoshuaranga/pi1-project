@@ -5,9 +5,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import get_settings
 from app.api.routers import jobs, kedb, metrics, tickets
 from app.api.ws import pipeline as ws_pipeline
+from app.config import get_settings
 from app.jobs.redis import close_redis_pool, get_redis_pool
 
 

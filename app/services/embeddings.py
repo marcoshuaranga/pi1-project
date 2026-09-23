@@ -1,5 +1,6 @@
 """Embedding backends: OpenAI or local (sin cuota API)."""
 
+import contextlib
 import json
 import time
 from abc import ABC, abstractmethod
@@ -151,10 +152,8 @@ class EmbeddingService:
     def _remember(self, key: str, vector: list[float]) -> None:
         if len(self._cache) >= _MAX_MEMORY_ENTRIES and key not in self._cache:
             # Drop an arbitrary old entry (FIFO-ish via iterator)
-            try:
+            with contextlib.suppress(StopIteration):
                 del self._cache[next(iter(self._cache))]
-            except StopIteration:
-                pass
         self._cache[key] = vector
 
     def embed_text(self, text: str, cache_key: str | None = None) -> list[float]:
@@ -165,7 +164,9 @@ class EmbeddingService:
         self._remember(key, vector)
         return vector
 
-    def embed_batch(self, texts: list[str], cache_keys: list[str] | None = None) -> list[list[float]]:
+    def embed_batch(
+        self, texts: list[str], cache_keys: list[str] | None = None
+    ) -> list[list[float]]:
         keys = cache_keys or [t[:200] for t in texts]
         results: list[list[float] | None] = [None] * len(texts)
         to_fetch_indices: list[int] = []
@@ -184,7 +185,7 @@ class EmbeddingService:
                 chunk_indices = to_fetch_indices[start : start + batch_size]
                 chunk_texts = to_fetch_texts[start : start + batch_size]
                 vectors = self.backend.embed_batch(chunk_texts)
-                for idx, vector in zip(chunk_indices, vectors):
+                for idx, vector in zip(chunk_indices, vectors, strict=False):
                     results[idx] = vector
                     self._remember(keys[idx], vector)
                 if self._load_disk_cache:

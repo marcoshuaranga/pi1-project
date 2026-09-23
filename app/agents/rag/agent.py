@@ -61,7 +61,7 @@ class RAGAgent:
         distances = results.get("distances", [[]])[0]
         metadatas = results.get("metadatas", [[]])[0]
         out = []
-        for doc_id, dist, meta in zip(ids, distances, metadatas):
+        for doc_id, dist, meta in zip(ids, distances, metadatas, strict=False):
             score = round(1.0 - dist, 3)
             out.append(
                 SolucionSugerida(

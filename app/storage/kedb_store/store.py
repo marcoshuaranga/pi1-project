@@ -4,11 +4,31 @@ import json
 import sqlite3
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.config import Settings, get_settings
 from app.schemas import KedbArticulo, KedbArticuloUpdate, KedbEstado, TicketResponse
+
+# HU10's human validation gate as a server-side invariant: once an expert
+# validates or rejects an article, it can't silently revert to borrador, and
+# archivado is terminal. Same-state "transitions" (editing content without
+# changing estado) are always allowed and don't consult this table.
+_ALLOWED_ESTADO_TRANSITIONS: dict[KedbEstado, set[KedbEstado]] = {
+    KedbEstado.BORRADOR: {KedbEstado.VALIDADO, KedbEstado.OBSOLETO},
+    KedbEstado.VALIDADO: {KedbEstado.OBSOLETO, KedbEstado.ARCHIVADO},
+    KedbEstado.OBSOLETO: {KedbEstado.ARCHIVADO},
+    KedbEstado.ARCHIVADO: set(),
+}
+
+
+class InvalidEstadoTransition(ValueError):
+    """Raised when a KEDB article's requested state transition breaks the HU10 gate."""
+
+    def __init__(self, origen: KedbEstado, destino: KedbEstado):
+        self.origen = origen
+        self.destino = destino
+        super().__init__(f"Transición de estado no permitida: {origen.value} -> {destino.value}")
 
 
 class KedbStore:
@@ -124,9 +144,7 @@ class KedbStore:
 
     def delete(self, articulo_id: str) -> bool:
         with self._conn() as conn:
-            cur = conn.execute(
-                "DELETE FROM kedb_articulos WHERE articulo_id = ?", (articulo_id,)
-            )
+            cur = conn.execute("DELETE FROM kedb_articulos WHERE articulo_id = ?", (articulo_id,))
         return cur.rowcount > 0
 
     def get(self, articulo_id: str) -> KedbArticulo | None:
@@ -160,7 +178,12 @@ class KedbStore:
         if not updates:
             return existing
         if "estado" in updates and updates["estado"] is not None:
-            updates["estado"] = updates["estado"].value
+            nuevo_estado = updates["estado"]
+            if nuevo_estado != existing.estado and nuevo_estado not in _ALLOWED_ESTADO_TRANSITIONS.get(
+                existing.estado, set()
+            ):
+                raise InvalidEstadoTransition(existing.estado, nuevo_estado)
+            updates["estado"] = nuevo_estado.value
         # Bump version when content fields change (not only estado transitions)
         content_keys = {"titulo", "sintoma", "causa", "solucion", "aplicable_a"}
         if content_keys & set(updates.keys()):
@@ -175,9 +198,7 @@ class KedbStore:
         """Publish Markdown projection. By default only validated articles (live docs)."""
         from app.storage.kedb_store.markdown import write_markdown
 
-        articulos = (
-            self.list_all(estado=KedbEstado.VALIDADO) if solo_validados else self.list_all()
-        )
+        articulos = self.list_all(estado=KedbEstado.VALIDADO) if solo_validados else self.list_all()
         for articulo in articulos:
             write_markdown(articulo, self.settings)
         return len(articulos)
@@ -210,7 +231,7 @@ class KedbStore:
                     articulo_id,
                     int(util) if util is not None else None,
                     nueva_solucion,
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
 
@@ -228,7 +249,7 @@ class KedbStore:
                     ticket_id,
                     categoria_original,
                     categoria_corregida,
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
 
@@ -242,7 +263,7 @@ class KedbStore:
                 (
                     response.ticket_id,
                     response.model_dump_json(),
-                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(UTC).isoformat(),
                 ),
             )
 

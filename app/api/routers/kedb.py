@@ -1,6 +1,7 @@
 """KEDB endpoints (HU08a/b, HU10, HU14, HU16, HU17)."""
 
 import asyncio
+import contextlib
 from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query
@@ -10,7 +11,7 @@ from app.agents.rag.agent import RAGAgent
 from app.jobs.redis import get_redis_pool
 from app.schemas import JobEnqueueResponse, KedbArticulo, KedbArticuloUpdate, KedbEstado
 from app.services.kedb_publisher import KedbPublisher
-from app.storage.kedb_store.store import KedbStore
+from app.storage.kedb_store.store import InvalidEstadoTransition, KedbStore
 
 router = APIRouter(prefix="/kedb", tags=["kedb"])
 
@@ -71,7 +72,10 @@ async def get_articulo(articulo_id: str):
 @router.patch("/articulos/{articulo_id}", response_model=KedbArticulo)
 async def update_articulo(articulo_id: str, body: KedbArticuloUpdate):
     """HU10 — approve / edit / reject article."""
-    articulo = get_store().update(articulo_id, body)
+    try:
+        articulo = get_store().update(articulo_id, body)
+    except InvalidEstadoTransition as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     if not articulo:
         raise HTTPException(status_code=404, detail="Artículo no encontrado")
     await asyncio.to_thread(get_publisher().publish, articulo)
@@ -101,13 +105,9 @@ async def seed_demo():
     from app.pipeline.enrich.reindex import reindex_kyocera_cluster
 
     articulo, _removed = ensure_clean_demo_articulo(get_store(), refresh_fixture=True)
-    try:
-        await asyncio.to_thread(
-            reindex_kyocera_cluster, ticket_ids=list(articulo.tickets_fuente)
-        )
-    except Exception:
-        # Seed must still return the KEDB borrador if Chroma/embeddings are down.
-        pass
+    # Seed must still return the KEDB borrador if Chroma/embeddings are down.
+    with contextlib.suppress(Exception):
+        await asyncio.to_thread(reindex_kyocera_cluster, ticket_ids=list(articulo.tickets_fuente))
     return articulo
 
 
@@ -153,3 +153,30 @@ async def buscar_kedb(q: str = Query(..., min_length=2)):
     """HU16 — semantic search on KEDB."""
     results = await asyncio.to_thread(get_rag().search_kedb, q)
     return {"query": q, "results": [r.model_dump() for r in results]}
+
+
+@router.get("/integridad")
+async def integridad(incluir_archivados: bool = False):
+    """Audita tickets_fuente (SQLite) contra la colección de tickets en Chroma.
+
+    Diagnóstico de solo lectura — no bloquea generación ni validación."""
+    from app.services.kedb_integrity import check_all
+
+    reportes = await asyncio.to_thread(
+        check_all, get_store(), incluir_archivados=incluir_archivados
+    )
+    con_problemas = [r for r in reportes if not r.ok]
+    return {
+        "total_articulos": len(reportes),
+        "con_tickets_faltantes": len(con_problemas),
+        "detalle": [
+            {
+                "articulo_id": r.articulo_id,
+                "titulo": r.titulo,
+                "estado": r.estado,
+                "tickets_fuente_total": r.tickets_fuente_total,
+                "tickets_faltantes": r.tickets_faltantes,
+            }
+            for r in con_problemas
+        ],
+    }

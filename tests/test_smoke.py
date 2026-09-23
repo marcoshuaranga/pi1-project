@@ -1,12 +1,13 @@
 """Smoke and unit tests."""
 
+from datetime import datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.pipeline.anonymize.anonymizer import Anonymizer
-from app.pipeline.ingest.normalize import normalize_category, clean_html, assign_split
-from datetime import datetime
+from app.pipeline.ingest.normalize import assign_split, clean_html, normalize_category
 
 
 @pytest.fixture
@@ -84,6 +85,7 @@ def test_create_ticket_no_chroma(client, monkeypatch):
     class MockAnonymizer:
         def anonymize(self, text):
             from app.pipeline.anonymize.anonymizer import AnonymizationResult
+
             return AnonymizationResult(text=text)
 
     monkeypatch.setattr("app.agents.orchestrator.graph.get_anonymizer", lambda: MockAnonymizer())
@@ -92,6 +94,7 @@ def test_create_ticket_no_chroma(client, monkeypatch):
     monkeypatch.setattr("app.agents.orchestrator.graph.RAGAgent", lambda: MockRAG())
 
     from app.api.deps import get_kedb_store, get_orchestrator
+
     get_orchestrator.cache_clear()
     get_kedb_store.cache_clear()
 

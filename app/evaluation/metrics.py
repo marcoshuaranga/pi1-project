@@ -2,7 +2,7 @@
 
 import json
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sklearn.metrics import f1_score
@@ -27,7 +27,7 @@ class EvaluationFramework:
                 "recall_at_5": 0.0,
                 "muestra": 0,
                 "kappa": None,
-                "fecha_calculo": datetime.now(timezone.utc).isoformat(),
+                "fecha_calculo": datetime.now(UTC).isoformat(),
             }
 
         data = json.loads(eval_path.read_text(encoding="utf-8"))
@@ -62,7 +62,7 @@ class EvaluationFramework:
             "recall_at_5": round(recall, 4),
             "muestra": n,
             "kappa": None,
-            "fecha_calculo": datetime.now(timezone.utc).isoformat(),
+            "fecha_calculo": datetime.now(UTC).isoformat(),
         }
         out = self.processed / "evaluation_results.json"
         out.write_text(json.dumps(result, indent=2), encoding="utf-8")

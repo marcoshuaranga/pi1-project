@@ -49,9 +49,7 @@ class KedbPublicationError(RuntimeError):
         self.failed_projection = failed_projection
         self.completed_projections = completed_projections
         completed = ", ".join(completed_projections) or "none"
-        super().__init__(
-            f"KEDB publication failed in {failed_projection}; completed: {completed}"
-        )
+        super().__init__(f"KEDB publication failed in {failed_projection}; completed: {completed}")
 
 
 class _Projection(Protocol):

@@ -1,7 +1,7 @@
 """Job status endpoints for ARQ background tasks."""
 
-from fastapi import APIRouter, HTTPException
 from arq.jobs import Job
+from fastapi import APIRouter, HTTPException
 
 from app.jobs.redis import get_redis_pool
 from app.schemas import JobStatusResponse

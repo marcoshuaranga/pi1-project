@@ -1,8 +1,9 @@
 """Policy for turning KEDB generation attempts into explicit outcomes."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 
 class KedbGenerationStatus(StrEnum):

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterable
+from collections.abc import Iterable
 
 from app.config import Settings, get_settings
 from app.pipeline.enrich.resolutions import SOLUCION_META_MAX, enrich_resolution
@@ -107,7 +107,7 @@ def reindex_kyocera_cluster(
         for i in range(0, len(ids), chunk):
             part = ids[i : i + chunk]
             got = col.get(ids=part, include=["metadatas"])
-            for tid, meta in zip(got.get("ids") or [], got.get("metadatas") or []):
+            for tid, meta in zip(got.get("ids") or [], got.get("metadatas") or [], strict=False):
                 if meta:
                     existing_meta[str(tid)] = meta
     except Exception:

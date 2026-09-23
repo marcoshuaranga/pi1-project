@@ -15,17 +15,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install deps in their own layer, keyed off the lockfile, so code-only
-# changes below don't bust the dependency cache.
+# Only the dependency manifest is copied at build time; app/scripts/tests are
+# bind-mounted by compose.dev.yml so code edits don't need a rebuild.
+# --no-install-project skips building the local "app" package (its source
+# isn't copied here), so no placeholder package dir is needed.
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --extra dev --no-install-project --no-cache
-
-COPY app ./app
-COPY scripts ./scripts
-COPY tests ./tests
-COPY data/fixtures ./data/fixtures
-
-RUN uv sync --locked --extra dev --no-cache
 
 # Pre-install spaCy Spanish model (ADR-08)
 RUN uv run python -m spacy download es_core_news_lg
@@ -34,4 +29,4 @@ RUN mkdir -p /data/processed /data/raw /data/kedb
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]

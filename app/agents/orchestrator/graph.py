@@ -1,9 +1,9 @@
 """C7 — LangGraph orchestrator (sequential pipeline)."""
 
 import uuid
+from collections.abc import Callable
 from contextvars import ContextVar
-from datetime import datetime, timezone
-from typing import Callable
+from datetime import UTC, datetime
 
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
@@ -57,7 +57,7 @@ class Orchestrator:
     ) -> PipelineEvento:
         evento = PipelineEvento(
             evento_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             agente=agente,
             ticket_id=ticket_id,
             tipo=tipo,

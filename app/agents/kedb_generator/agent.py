@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import hdbscan
 import numpy as np
@@ -29,29 +29,6 @@ _DEFAULT_KEYWORDS = (
     "std",
     "impresora",
 )
-
-KEDB_TEMPLATE = """
-# {titulo}
-
-## Síntoma
-{sintoma}
-
-## Categoría
-{categoria}
-
-## Causa probable
-{causa}
-
-## Solución
-{solucion}
-
-## Aplicable a
-{aplicable_a}
-
-## Trazabilidad
-- Tickets fuente: {tickets_fuente}
-"""
-
 
 class KedbGeneratorAgent:
     def __init__(self, settings: Settings | None = None):
@@ -106,9 +83,7 @@ class KedbGeneratorAgent:
             try:
                 chunk = self.collection.get(ids=batch_ids, include=include)
             except Exception:
-                logger.exception(
-                    "Chroma get falló en lote offset=%s size=%s", i, len(batch_ids)
-                )
+                logger.exception("Chroma get falló en lote offset=%s size=%s", i, len(batch_ids))
                 raise
             got_ids = list(chunk.get("ids") or [])
             metas = list(chunk.get("metadatas") or [])
@@ -122,7 +97,7 @@ class KedbGeneratorAgent:
                     )
                     continue
                 out_embeds.extend(embeds)
-            for tid, meta in zip(got_ids, metas):
+            for tid, meta in zip(got_ids, metas, strict=False):
                 out_ids.append(str(tid))
                 out_metas.append(meta or {})
 
@@ -164,7 +139,7 @@ class KedbGeneratorAgent:
         labels = clusterer.fit_predict(embeddings)
 
         clusters: dict[int, list[dict]] = {}
-        for tid, label, meta in zip(ids, labels, metas):
+        for tid, label, meta in zip(ids, labels, metas, strict=False):
             if label < 0:
                 continue
             clusters.setdefault(int(label), []).append({"ticket_id": tid, **meta})
@@ -205,7 +180,7 @@ Responde SOLO con JSON válido."""
             causa=content.get("causa", ""),
             solucion=content.get("solucion", ""),
             tickets_fuente=ticket_ids,
-            fecha_generacion=datetime.now(timezone.utc),
+            fecha_generacion=datetime.now(UTC),
             estado=KedbEstado.BORRADOR,
             aplicable_a=content.get("aplicable_a", "Sedes MTC"),
         )
@@ -223,7 +198,7 @@ Responde SOLO con JSON válido."""
             return []
         ids, metas, _ = self._get_rows(all_ids, include_embeddings=False)
         buckets: dict[str, list[dict]] = {kw: [] for kw in keywords}
-        for tid, meta in zip(ids, metas):
+        for tid, meta in zip(ids, metas, strict=False):
             titulo = (meta.get("titulo") or "").lower()
             for kw in keywords:
                 if kw.lower() in titulo:
@@ -244,7 +219,7 @@ Responde SOLO con JSON válido."""
         ids, metas, _ = self._get_rows(all_ids, include_embeddings=False)
         matching = []
         kw = keyword.lower()
-        for tid, meta in zip(ids, metas):
+        for tid, meta in zip(ids, metas, strict=False):
             titulo = (meta.get("titulo") or "").lower()
             if kw in titulo:
                 matching.append({"ticket_id": tid, **meta})
@@ -253,20 +228,22 @@ Responde SOLO con JSON válido."""
         cluster = {"cluster_id": 0, "tickets": matching, "size": len(matching)}
         return self.synthesize_article(cluster)
 
-    def generate(
-        self, max_articles: int = 50, keyword: str | None = None
-    ) -> KedbGenerationOutcome:
+    def generate(self, max_articles: int = 50, keyword: str | None = None) -> KedbGenerationOutcome:
         """Run primary KEDB generation and the explicit demo fallback policy."""
         if keyword:
+
             def primary():
                 return self.generate_from_cluster_keyword(keyword)
         else:
+
             def primary():
                 return self.generate_all(max_articles=max_articles)
+
         return KedbGenerationPolicy(primary, self.generate_demo_fixture).run()
 
     def generate_all(self, max_articles: int = 50) -> list[KedbArticulo]:
-        """Prefer metadata keyword clusters; fall back to sampled HDBSCAN."""
+        """Sampled HDBSCAN is primary (ADR-0005); metadata keyword clusters are
+        only a cheap fallback when HDBSCAN doesn't fill max_articles."""
         articles: list[KedbArticulo] = []
         seen_titles: set[str] = set()
 
@@ -277,41 +254,42 @@ Responde SOLO con JSON válido."""
             seen_titles.add(key)
             articles.append(art)
 
-        # 1) Metadata-only clusters (cheap; does not dump all embeddings)
+        # 1) Sampled HDBSCAN (primary — ADR-0005)
         try:
-            meta_clusters = self._metadata_keyword_clusters()
-            meta_clusters.sort(key=lambda c: c["size"], reverse=True)
-            for cluster in meta_clusters:
+            clusters = self.cluster_tickets()
+            clusters.sort(key=lambda c: c["size"], reverse=True)
+            for cluster in clusters:
                 if len(articles) >= max_articles:
                     break
                 try:
                     _add(self.synthesize_article(cluster))
                 except Exception:
                     logger.exception(
-                        "Síntesis KEDB (keyword=%s) falló size=%s",
-                        cluster.get("keyword"),
+                        "Síntesis KEDB falló para cluster size=%s",
                         cluster.get("size"),
                     )
         except Exception:
-            logger.exception("Clustering por keyword/metadata falló")
+            logger.exception("HDBSCAN muestreado falló; se continúa con clustering por keyword")
 
-        # 2) Sampled HDBSCAN if we still need articles
+        # 2) Metadata-only keyword clusters if HDBSCAN didn't fill max_articles
+        # (cheap fallback; does not dump all embeddings)
         if len(articles) < max_articles:
             try:
-                clusters = self.cluster_tickets()
-                clusters.sort(key=lambda c: c["size"], reverse=True)
-                for cluster in clusters:
+                meta_clusters = self._metadata_keyword_clusters()
+                meta_clusters.sort(key=lambda c: c["size"], reverse=True)
+                for cluster in meta_clusters:
                     if len(articles) >= max_articles:
                         break
                     try:
                         _add(self.synthesize_article(cluster))
                     except Exception:
                         logger.exception(
-                            "Síntesis KEDB falló para cluster size=%s",
+                            "Síntesis KEDB (keyword=%s) falló size=%s",
+                            cluster.get("keyword"),
                             cluster.get("size"),
                         )
             except Exception:
-                logger.exception("HDBSCAN muestreado falló; se continúa con lo ya generado")
+                logger.exception("Clustering por keyword/metadata falló")
 
         return articles[:max_articles]
 

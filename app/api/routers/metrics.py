@@ -2,7 +2,7 @@
 
 import json
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -37,9 +37,9 @@ async def get_evaluacion():
             try:
                 fecha_calculo = datetime.fromisoformat(fecha)
             except ValueError:
-                fecha_calculo = datetime.now(timezone.utc)
+                fecha_calculo = datetime.now(UTC)
         else:
-            fecha_calculo = datetime.now(timezone.utc)
+            fecha_calculo = datetime.now(UTC)
         return MetricasEvaluacion(
             f1_macro=data.get("f1_macro", 0.0),
             recall_at_5=data.get("recall_at_5", 0.0),
@@ -52,7 +52,7 @@ async def get_evaluacion():
         f1_macro=0.0,
         recall_at_5=0.0,
         kappa=None,
-        fecha_calculo=datetime.now(timezone.utc),
+        fecha_calculo=datetime.now(UTC),
         muestra_tickets=0,
     )
 

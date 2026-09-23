@@ -1,19 +1,19 @@
 """Canonical data schemas (PRD §5)."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class TicketEstado(str, Enum):
+class TicketEstado(StrEnum):
     ABIERTO = "abierto"
     CERRADO = "cerrado"
     EN_PROCESO = "en_proceso"
 
 
-class KedbEstado(str, Enum):
+class KedbEstado(StrEnum):
     BORRADOR = "borrador"
     VALIDADO = "validado"
     OBSOLETO = "obsoleto"
@@ -94,7 +94,7 @@ class GoldenSetEntry(BaseModel):
     split: str  # train | eval | holdout
 
 
-class AgenteTipo(str, Enum):
+class AgenteTipo(StrEnum):
     CLASIFICADOR = "Clasificador"
     PRIORIZADOR = "Priorizador"
     RAG = "RAG"
@@ -102,7 +102,7 @@ class AgenteTipo(str, Enum):
     ORQUESTADOR = "Orquestador"
 
 
-class EventoTipo(str, Enum):
+class EventoTipo(StrEnum):
     INICIO = "inicio"
     FIN = "fin"
     ERROR = "error"

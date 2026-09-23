@@ -55,7 +55,7 @@ class ClassifierAgent:
 
         votes: Counter = Counter()
         scores: dict[str, list[float]] = {}
-        for meta, dist in zip(metas, distances):
+        for meta, dist in zip(metas, distances, strict=False):
             cat = meta.get("categoria", "")
             if not cat:
                 continue

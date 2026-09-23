@@ -31,7 +31,9 @@ class Settings(BaseSettings):
     # Azure requires a deployment name, which may differ from the underlying model name;
     # falls back to embedding_model if left blank.
     azure_openai_embedding_deployment: str = ""
-    llm_provider: str = "openai"  # openai | anthropic | litellm | ... (any provider init_chat_model supports)
+    llm_provider: str = (
+        "openai"  # openai | anthropic | litellm | ... (any provider init_chat_model supports)
+    )
     llm_model: str = "gpt-4o-mini"
     batch_size: int = 100
     # KEDB clustering: never dump the full embedding matrix in one Chroma get

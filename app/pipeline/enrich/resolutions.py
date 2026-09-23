@@ -48,9 +48,7 @@ def is_thin_resolution(solucion: str | None) -> bool:
         return True
     # Short bullet stubs without operational detail
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    if len(lines) <= 3 and len(text) < _MIN_KEEP_LEN + 80:
-        return True
-    return False
+    return len(lines) <= 3 and len(text) < _MIN_KEEP_LEN + 80
 
 
 def enrich_resolution(
@@ -89,9 +87,7 @@ def enrich_resolution(
 
 def _detect_domain(titulo: str, categoria: str | None) -> str:
     blob = f"{titulo or ''} {categoria or ''}"
-    if _KYOCERA_TITLE_RE.search(blob) or (
-        _IMPRESSORA_RE.search(blob) and "7003" in blob.lower()
-    ):
+    if _KYOCERA_TITLE_RE.search(blob) or (_IMPRESSORA_RE.search(blob) and "7003" in blob.lower()):
         return "kyocera"
     if _IMPRESSORA_RE.search(blob) or (categoria and "impres" in categoria.lower()):
         return "impresora"
