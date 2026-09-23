@@ -1,13 +1,16 @@
 """WebSocket pipeline events (§6.4)."""
 
 import asyncio
+import logging
 from collections import defaultdict
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.api.deps import get_orchestrator
-from app.api.state import save_ticket
+from app.api.state import create_pending_ticket, fail_ticket, save_ticket
 from app.schemas import PipelineEvento
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -53,10 +56,22 @@ async def pipeline_ws(websocket: WebSocket, ticket_id: str):
         while True:
             data = await websocket.receive_json()
             if data.get("action") == "process" and data.get("texto"):
+                # Recorded before the pipeline runs so GET /tickets/{id} can tell
+                # "still processing" apart from "never existed" while it's in flight.
+                create_pending_ticket(ticket_id)
                 loop = asyncio.get_running_loop()
-                response = await asyncio.to_thread(
-                    _process_ticket_sync, data["texto"], ticket_id, loop
-                )
+                try:
+                    response = await asyncio.to_thread(
+                        _process_ticket_sync, data["texto"], ticket_id, loop
+                    )
+                except Exception as exc:
+                    # Caught here so it doesn't propagate silently to the caught-all
+                    # WebSocketDisconnect handler — log the full traceback server-side
+                    # even though only the short message goes to the client.
+                    logger.exception("Pipeline failed for ticket %s", ticket_id)
+                    fail_ticket(ticket_id, str(exc))
+                    await broadcast_json(ticket_id, {"type": "error", "message": str(exc)})
+                    continue
                 save_ticket(response)
                 payload = {"type": "result", "data": response.model_dump()}
                 # Fan-out so a client that left and re-subscribed still gets the result.

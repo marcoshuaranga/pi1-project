@@ -15,6 +15,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <OperatorPage /> },
+      { path: "tickets/:ticketId", element: <OperatorPage /> },
       { path: "whatsapp", element: <WhatsAppPage /> },
       { path: "experto", element: <ExpertPage /> },
       { path: "kedb", element: <ExpertPage /> },

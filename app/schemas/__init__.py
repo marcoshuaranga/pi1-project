@@ -60,6 +60,23 @@ class TicketResponse(BaseModel):
     soluciones: list[SolucionSugerida] = Field(default_factory=list)
 
 
+class TicketSessionStatus(StrEnum):
+    PROCESANDO = "procesando"
+    COMPLETADO = "completado"
+    ERROR = "error"
+
+
+class TicketStatusResponse(BaseModel):
+    """§6.4 pipeline session lookup — distinguishes in-flight from finished/failed
+    so GET /tickets/{id} doesn't 404 for a ticket that's still running (race
+    between the client-generated id and the pipeline thread's save_ticket call)."""
+
+    ticket_id: str
+    status: TicketSessionStatus
+    result: TicketResponse | None = None
+    error: str | None = None
+
+
 class KedbArticulo(BaseModel):
     articulo_id: str
     titulo: str

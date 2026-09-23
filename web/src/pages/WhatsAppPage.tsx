@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { newTicketId } from "../api";
 
 type Message = {
   id: number;
@@ -73,9 +74,10 @@ export default function WhatsAppPage() {
       return;
     }
 
-    navigate("/", {
+    const ticketId = newTicketId();
+    navigate(`/tickets/${ticketId}`, {
       state: {
-        whatsappText: transcriptFrom(messages),
+        submitText: transcriptFrom(messages),
       },
     });
   };

@@ -19,6 +19,15 @@ export interface TicketResponse {
   soluciones: Solucion[];
 }
 
+export type TicketSessionStatus = "procesando" | "completado" | "error";
+
+export interface TicketStatusResponse {
+  ticket_id: string;
+  status: TicketSessionStatus;
+  result?: TicketResponse;
+  error?: string;
+}
+
 export interface KedbArticulo {
   articulo_id: string;
   titulo: string;
@@ -152,6 +161,10 @@ export function processTicketViaWs(
           finish(() => resolve(data.data as TicketResponse));
           return;
         }
+        if (data?.type === "error") {
+          finish(() => reject(new Error(data.message || "El pipeline falló en el servidor.")));
+          return;
+        }
         if (data?.agente && data?.tipo) {
           options?.onEvent?.(data as PipelineWsEvent);
         }
@@ -168,6 +181,7 @@ export function subscribePipelineWs(
   options?: {
     onEvent?: (evento: PipelineWsEvent) => void;
     onResult?: (result: TicketResponse) => void;
+    onError?: (message: string) => void;
     signal?: AbortSignal;
   }
 ): void {
@@ -197,6 +211,11 @@ export function subscribePipelineWs(
       const data = JSON.parse(msg.data as string);
       if (data?.type === "result" && data.data) {
         options?.onResult?.(data.data as TicketResponse);
+        cleanup();
+        return;
+      }
+      if (data?.type === "error") {
+        options?.onError?.(data.message || "El pipeline falló en el servidor.");
         cleanup();
         return;
       }
@@ -284,7 +303,7 @@ export const api = {
     }),
 
   getTicket: (ticketId: string) =>
-    request<TicketResponse>(`/tickets/${encodeURIComponent(ticketId)}`),
+    request<TicketStatusResponse>(`/tickets/${encodeURIComponent(ticketId)}`),
 
   getPendientes: () => request<KedbArticulo[]>("/kedb/pendientes"),
 

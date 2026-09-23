@@ -8,7 +8,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.config import Settings, get_settings
-from app.schemas import KedbArticulo, KedbArticuloUpdate, KedbEstado, TicketResponse
+from app.schemas import (
+    KedbArticulo,
+    KedbArticuloUpdate,
+    KedbEstado,
+    TicketResponse,
+    TicketSessionStatus,
+    TicketStatusResponse,
+)
 
 # HU10's human validation gate as a server-side invariant: once an expert
 # validates or rejects an article, it can't silently revert to borrador, and
@@ -95,10 +102,20 @@ class KedbStore:
                 CREATE TABLE IF NOT EXISTS ticket_sessions (
                     ticket_id TEXT PRIMARY KEY,
                     payload TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'completado',
+                    error TEXT,
                     updated_at TEXT NOT NULL
                 )
                 """
             )
+            self._add_column_if_missing(conn, "ticket_sessions", "status", "TEXT NOT NULL DEFAULT 'completado'")
+            self._add_column_if_missing(conn, "ticket_sessions", "error", "TEXT")
+
+    @staticmethod
+    def _add_column_if_missing(conn: sqlite3.Connection, table: str, column: str, ddl: str) -> None:
+        cols = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
     def _row_to_articulo(self, row: sqlite3.Row) -> KedbArticulo:
         return KedbArticulo(
@@ -253,12 +270,25 @@ class KedbStore:
                 ),
             )
 
+    def create_pending_ticket_session(self, ticket_id: str) -> None:
+        """Mark a ticket as in-flight as soon as processing starts, before the
+        pipeline finishes — so a GET in the meantime sees "procesando" instead
+        of a false 404 (the id is generated client-side, ahead of any row)."""
+        with self._conn() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO ticket_sessions (ticket_id, payload, status, updated_at)
+                VALUES (?, '{}', 'procesando', ?)
+                """,
+                (ticket_id, datetime.now(UTC).isoformat()),
+            )
+
     def save_ticket_session(self, response: TicketResponse) -> None:
         with self._conn() as conn:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO ticket_sessions (ticket_id, payload, updated_at)
-                VALUES (?, ?, ?)
+                INSERT OR REPLACE INTO ticket_sessions (ticket_id, payload, status, error, updated_at)
+                VALUES (?, ?, 'completado', NULL, ?)
                 """,
                 (
                     response.ticket_id,
@@ -267,14 +297,33 @@ class KedbStore:
                 ),
             )
 
-    def get_ticket_session(self, ticket_id: str) -> TicketResponse | None:
+    def fail_ticket_session(self, ticket_id: str, error: str) -> None:
+        with self._conn() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO ticket_sessions (ticket_id, payload, status, error, updated_at)
+                VALUES (?, '{}', 'error', ?, ?)
+                """,
+                (ticket_id, error, datetime.now(UTC).isoformat()),
+            )
+
+    def get_ticket_session(self, ticket_id: str) -> TicketStatusResponse | None:
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT payload FROM ticket_sessions WHERE ticket_id = ?", (ticket_id,)
+                "SELECT payload, status, error FROM ticket_sessions WHERE ticket_id = ?",
+                (ticket_id,),
             ).fetchone()
         if not row:
             return None
-        return TicketResponse.model_validate_json(row["payload"])
+        status = TicketSessionStatus(row["status"] or "completado")
+        result = (
+            TicketResponse.model_validate_json(row["payload"])
+            if status == TicketSessionStatus.COMPLETADO
+            else None
+        )
+        return TicketStatusResponse(
+            ticket_id=ticket_id, status=status, result=result, error=row["error"]
+        )
 
 
 def new_articulo_id() -> str:

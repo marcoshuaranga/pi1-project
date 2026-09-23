@@ -50,7 +50,18 @@ export default function App() {
       }: {
         currentLocation: { pathname: string };
         nextLocation: { pathname: string };
-      }) => pipelineBusy && currentLocation.pathname !== nextLocation.pathname,
+      }) => {
+        if (!pipelineBusy) return false;
+        if (currentLocation.pathname === nextLocation.pathname) return false;
+        // Moving between the new-ticket form and any /tickets/:id page is how
+        // multiple tickets get tracked at once — each keeps running server-side
+        // regardless of which one is currently in view, so don't warn for this.
+        const isOperatorPath = (p: string) => p === "/" || p.startsWith("/tickets/");
+        if (isOperatorPath(currentLocation.pathname) && isOperatorPath(nextLocation.pathname)) {
+          return false;
+        }
+        return true;
+      },
       [pipelineBusy]
     )
   );
@@ -128,7 +139,13 @@ export default function App() {
               <span>WhatsApp</span>
               <span className="app-nav-arrow">›</span>
             </NavLink>
-            <NavLink to="/" end className={({ isActive }) => navClass(isActive)} onClick={() => setMobileNavOpen(false)}>
+            <NavLink
+              to="/"
+              className={() =>
+                navClass(location.pathname === "/" || location.pathname.startsWith("/tickets/"))
+              }
+              onClick={() => setMobileNavOpen(false)}
+            >
               <span className="app-nav-icon">⌁</span>
               <span>Operador</span>
               <span className="app-nav-arrow">›</span>
