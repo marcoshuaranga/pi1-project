@@ -7,7 +7,7 @@ stages:
     cmd: docker compose --profile pipeline run --rm pipeline extract
     deps:
       - data/raw/Tickets_Consolidados.xlsx
-      - app/pipeline/ingest/normalize.py
+      - apps/pipeline/src/pi_pipeline/ingest/normalize.py
     outs:
       - data/processed/sample_raw.parquet
 
@@ -15,7 +15,7 @@ stages:
     cmd: docker compose --profile pipeline run --rm pipeline anonymize
     deps:
       - data/processed/sample_raw.parquet
-      - app/pipeline/anonymize/anonymizer.py
+      - packages/core/src/pi_core/anonymize/anonymizer.py
     outs:
       - data/processed/sample_anonymized.parquet
 
@@ -23,8 +23,8 @@ stages:
     cmd: docker compose --profile pipeline run --rm pipeline ingest
     deps:
       - data/processed/sample_anonymized.parquet
-      - app/pipeline/ingest/normalize.py
-      - app/pipeline/ingest/pipeline.py
+      - apps/pipeline/src/pi_pipeline/ingest/normalize.py
+      - apps/pipeline/src/pi_pipeline/ingest/pipeline.py
     outs:
       - data/processed/tickets_all.json
       - data/processed/tickets_train.json

@@ -8,4 +8,4 @@ A single embedding space keeps the three consumers aligned: a ticket's neighbors
 
 ## Update
 
-`EMBEDDING_PROVIDER=azure` was added (`app/services/embeddings.py`'s `AzureOpenAIBackend`) as a third option alongside `openai`/`local`. It's the same `text-embedding-3-small` model served through an Azure OpenAI resource instead of openai.com — an alternate transport for the model this ADR already commits to, not a different embedding space or a new decision.
+`EMBEDDING_PROVIDER=azure` was added (`packages/core/src/pi_core/services/embeddings.py`'s `AzureOpenAIBackend`) as a third option alongside `openai`/`local`. It's the same `text-embedding-3-small` model served through an Azure OpenAI resource instead of openai.com — an alternate transport for the model this ADR already commits to, not a different embedding space or a new decision.

@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.jobs import tasks
-from app.services.kedb_generation import KedbGenerationOutcome, KedbGenerationStatus
+from pi_core.services.kedb_generation import KedbGenerationOutcome, KedbGenerationStatus
+from pi_worker import tasks
 
 
 class FakeArticle:
@@ -27,7 +27,7 @@ class FakeGenerator:
 
 def test_task_marks_generated_result(monkeypatch):
     monkeypatch.setattr(
-        "app.agents.kedb_generator.agent.KedbGeneratorAgent",
+        "pi_core.agents.kedb_generator.agent.KedbGeneratorAgent",
         lambda: FakeGenerator(
             KedbGenerationOutcome(KedbGenerationStatus.GENERATED, [FakeArticle("generated")])
         ),
@@ -44,7 +44,7 @@ def test_task_marks_generated_result(monkeypatch):
 
 def test_task_marks_legacy_demo_fallback(monkeypatch):
     monkeypatch.setattr(
-        "app.agents.kedb_generator.agent.KedbGeneratorAgent",
+        "pi_core.agents.kedb_generator.agent.KedbGeneratorAgent",
         lambda: FakeGenerator(
             KedbGenerationOutcome(
                 KedbGenerationStatus.FALLBACK,
@@ -63,7 +63,7 @@ def test_task_marks_legacy_demo_fallback(monkeypatch):
 
 def test_task_raises_when_generation_and_fallback_fail(monkeypatch):
     monkeypatch.setattr(
-        "app.agents.kedb_generator.agent.KedbGeneratorAgent",
+        "pi_core.agents.kedb_generator.agent.KedbGeneratorAgent",
         lambda: FakeGenerator(
             KedbGenerationOutcome(
                 KedbGenerationStatus.FAILED,
@@ -84,7 +84,7 @@ def test_task_raises_when_generation_and_fallback_fail(monkeypatch):
 
 def test_task_reports_fallback_failure_when_primary_is_empty(monkeypatch):
     monkeypatch.setattr(
-        "app.agents.kedb_generator.agent.KedbGeneratorAgent",
+        "pi_core.agents.kedb_generator.agent.KedbGeneratorAgent",
         lambda: FakeGenerator(
             KedbGenerationOutcome(
                 KedbGenerationStatus.FAILED,
@@ -100,7 +100,7 @@ def test_task_reports_fallback_failure_when_primary_is_empty(monkeypatch):
 
 def test_task_reports_primary_failure_when_fallback_is_empty(monkeypatch):
     monkeypatch.setattr(
-        "app.agents.kedb_generator.agent.KedbGeneratorAgent",
+        "pi_core.agents.kedb_generator.agent.KedbGeneratorAgent",
         lambda: FakeGenerator(
             KedbGenerationOutcome(
                 KedbGenerationStatus.FAILED,
@@ -121,7 +121,7 @@ def test_task_reports_primary_failure_when_fallback_is_empty(monkeypatch):
 def test_task_reports_dual_failure_when_both_paths_raise_same_exception(monkeypatch):
     shared_error = RuntimeError("shared unavailable")
     monkeypatch.setattr(
-        "app.agents.kedb_generator.agent.KedbGeneratorAgent",
+        "pi_core.agents.kedb_generator.agent.KedbGeneratorAgent",
         lambda: FakeGenerator(
             KedbGenerationOutcome(
                 KedbGenerationStatus.FAILED,

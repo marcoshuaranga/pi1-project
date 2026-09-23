@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.pipeline.ingest.normalize import extract_sample, load_glpi_excel
+from pi_pipeline.ingest.normalize import extract_sample, load_glpi_excel
 
 
 def main():

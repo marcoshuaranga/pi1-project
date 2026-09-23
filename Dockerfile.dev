@@ -15,18 +15,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Only the dependency manifest is copied at build time; app/scripts/tests are
-# bind-mounted by compose.dev.yml so code edits don't need a rebuild.
-# --no-install-project skips building the local "app" package (its source
-# isn't copied here), so no placeholder package dir is needed.
+# Only the dependency manifests are copied at build time; packages/apps/scripts/
+# tests are bind-mounted by compose.dev.yml so code edits don't need a rebuild.
+# --no-install-workspace installs every third-party dependency of all members
+# (plus the root `dev` group) without building the members, whose source isn't
+# copied here; `uv run` installs them editable from the mounts at container start.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --extra dev --no-install-project --no-cache
+COPY packages/core/pyproject.toml ./packages/core/pyproject.toml
+COPY apps/api/pyproject.toml ./apps/api/pyproject.toml
+COPY apps/worker/pyproject.toml ./apps/worker/pyproject.toml
+COPY apps/pipeline/pyproject.toml ./apps/pipeline/pyproject.toml
+RUN uv sync --locked --no-install-workspace --no-cache
 
 # Pre-install spaCy Spanish model (ADR-08)
-RUN uv run python -m spacy download es_core_news_lg
+RUN uv run --no-sync python -m spacy download es_core_news_lg
 
 RUN mkdir -p /data/processed /data/raw /data/kedb
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
+CMD ["uv", "run", "uvicorn", "pi_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/apps/api/src", "--reload-dir", "/app/packages/core/src"]

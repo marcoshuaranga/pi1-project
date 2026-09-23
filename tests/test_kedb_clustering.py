@@ -43,7 +43,7 @@ class FakeCollection:
 
 
 def test_cluster_tickets_uses_sample_and_finds_clusters(monkeypatch):
-    from app.agents.kedb_generator import agent as kedb_mod
+    from pi_core.agents.kedb_generator import agent as kedb_mod
 
     fake = FakeCollection(120)
 
@@ -64,7 +64,7 @@ def test_cluster_tickets_uses_sample_and_finds_clusters(monkeypatch):
 
 
 def test_metadata_keyword_clusters_no_embeddings(monkeypatch):
-    from app.agents.kedb_generator import agent as kedb_mod
+    from pi_core.agents.kedb_generator import agent as kedb_mod
 
     fake = FakeCollection(40)
 

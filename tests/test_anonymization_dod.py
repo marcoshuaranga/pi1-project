@@ -12,7 +12,7 @@ import re
 
 import pytest
 
-from app.pipeline.anonymize.anonymizer import PII_PATTERNS, Anonymizer
+from pi_core.anonymize.anonymizer import PII_PATTERNS, Anonymizer
 
 SAMPLE_SIZE = 500
 

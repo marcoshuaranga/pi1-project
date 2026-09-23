@@ -1,8 +1,8 @@
 """KEDB publication policy tests."""
 
-from app.fixtures.kyocera_demo import build_demo_articulo
-from app.schemas import KedbEstado
-from app.services.kedb_publisher import (
+from pi_core.fixtures.kyocera_demo import build_demo_articulo
+from pi_core.schemas import KedbEstado
+from pi_core.services.kedb_publisher import (
     KedbPublication,
     KedbPublicationError,
     KedbPublisher,

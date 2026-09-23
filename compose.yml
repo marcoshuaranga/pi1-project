@@ -84,7 +84,9 @@ services:
       retries: 5
 
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
     ports:
       - "8000:8000"
     restart: on-failure
@@ -100,13 +102,14 @@ services:
       - KEDB_DOCS_PATH=/data/kedb/articles
       - LITELLM_BASE_URL=http://litellm:4000
     volumes:
-      - ./app:/app/app
+      - ./apps/api/src:/app/apps/api/src
+      - ./packages/core/src:/app/packages/core/src
       - ./data/processed:/data/processed
       - ./data/raw:/data/raw
       - ./data/fixtures:/data/fixtures
       - kedb_data:/data/kedb
       - ./data/kedb/articles:/data/kedb/articles
-    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
+    command: ["uv", "run", "--no-sync", "uvicorn", "pi_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/apps/api/src", "--reload-dir", "/app/packages/core/src"]
     depends_on:
       chromadb:
         condition: service_healthy
@@ -136,7 +139,9 @@ services:
       start_period: 30s
 
   worker:
-    build: .
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
     restart: on-failure
     env_file:
       - .env
@@ -167,7 +172,7 @@ services:
         condition: service_healthy
       litellm:
         condition: service_healthy
-    command: ["uv", "run", "arq", "app.jobs.worker.WorkerSettings"]
+    command: ["uv", "run", "--no-sync", "arq", "pi_worker.worker.WorkerSettings"]
     deploy:
       resources:
         # max_jobs=1: un job pesado (HDBSCAN/eval); 4G+4CPU es el punto eficiente en demo local
@@ -210,7 +215,9 @@ services:
         window: 120s
 
   pipeline:
-    build: .
+    build:
+      context: .
+      dockerfile: apps/pipeline/Dockerfile
     restart: "no"
     env_file:
       - .env
@@ -233,7 +240,7 @@ services:
     depends_on:
       chromadb:
         condition: service_healthy
-    entrypoint: ["uv", "run", "python", "-m", "app.pipeline.cli"]
+    entrypoint: ["uv", "run", "--no-sync", "python", "-m", "pi_pipeline.cli"]
     profiles:
       - pipeline
     deploy:

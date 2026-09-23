@@ -5,8 +5,8 @@ graph node; the _step_* methods own only the agent-call + state-mapping. Both
 are testable here without building or invoking the compiled LangGraph.
 """
 
-from app.agents.orchestrator.graph import Orchestrator
-from app.schemas import AgenteTipo, EventoTipo, SolucionSugerida
+from pi_core.agents.orchestrator.graph import Orchestrator
+from pi_core.schemas import AgenteTipo, EventoTipo, SolucionSugerida
 
 
 def _orchestrator(**attrs) -> Orchestrator:

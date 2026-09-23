@@ -1,7 +1,7 @@
 """Unit tests for resolution enrichment (demo-quality indexed text)."""
 
-from app.fixtures.kyocera_demo import DEMO_ARTICLE_TEMPLATE, build_demo_articulo
-from app.pipeline.enrich.resolutions import enrich_resolution, is_thin_resolution
+from pi_core.enrich.resolutions import enrich_resolution, is_thin_resolution
+from pi_core.fixtures.kyocera_demo import DEMO_ARTICLE_TEMPLATE, build_demo_articulo
 
 
 def test_thin_generic_kyocera_stub():

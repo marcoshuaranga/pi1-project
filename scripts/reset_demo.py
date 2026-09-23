@@ -27,8 +27,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.fixtures.kyocera_demo import reset_demo_state
-from app.storage.kedb_store.store import KedbStore
+from pi_core.fixtures.kyocera_demo import reset_demo_state
+from pi_core.storage.kedb_store.store import KedbStore
 
 
 def main() -> int:
@@ -66,7 +66,7 @@ def main() -> int:
     print(f"  Pendientes totales : {summary['pendientes']}")
 
     try:
-        from app.pipeline.enrich.reindex import reindex_kyocera_cluster
+        from pi_core.enrich.reindex import reindex_kyocera_cluster
 
         n = reindex_kyocera_cluster(
             ticket_ids=list(summary["articulo"].tickets_fuente)

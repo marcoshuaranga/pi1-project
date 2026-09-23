@@ -1,50 +1,37 @@
+# Raíz del uv workspace. Es un meta-proyecto no empaquetable: solo agrupa los
+# miembros (packages/core, apps/*) para que `uv sync` / `uv run pytest` en la
+# raíz instalen todo, y aloja el tooling de desarrollo compartido.
+# Las dependencias reales de cada servicio viven en su propio pyproject.toml.
 [project]
 name = "pi1-rag-kedb"
 version = "0.1.0"
 description = "Plataforma multi-agente RAG + KEDB — Mesa de Ayuda OITSI-MTC"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.32.0",
-    "pydantic>=2.9.0",
-    "pydantic-settings>=2.6.0",
-    "openai>=1.55.0",
-    "chromadb==0.5.23",
-    "posthog>=2.4.0,<6.0.0",
-    "langgraph>=0.2.60",
-    "langchain>=1.0.0",
-    "langchain-openai>=0.2.10",
-    "langchain-anthropic>=1.0.0",
-    "spacy>=3.8.0",
-    "pandas>=2.2.0",
-    "pyarrow>=18.0.0",
-    "openpyxl>=3.1.0",
-    "hdbscan>=0.8.38",
-    "scikit-learn>=1.5.0",
-    "numpy>=1.26.0",
-    "httpx>=0.28.0",
-    "python-multipart>=0.0.17",
-    "websockets>=14.0",
-    "aiosqlite>=0.20.0",
-    "fastembed>=0.4.2",
-    "arq>=0.26.0",
-    "redis>=5.0.0",
+    "pi-core",
+    "pi-api",
+    "pi-worker",
+    "pi-pipeline",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "ruff>=0.8.0",
 ]
 
-[build-system]
-requires = ["setuptools>=75.0"]
-build-backend = "setuptools.build_meta"
+[tool.uv]
+package = false
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["app*"]
+[tool.uv.sources]
+pi-core = { workspace = true }
+pi-api = { workspace = true }
+pi-worker = { workspace = true }
+pi-pipeline = { workspace = true }
+
+[tool.uv.workspace]
+members = ["packages/*", "apps/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -60,3 +47,6 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
 ignore = ["E501"]  # line length is handled by `ruff format`, not worth enforcing separately
+
+[tool.ruff.lint.isort]
+known-first-party = ["pi_core", "pi_api", "pi_worker", "pi_pipeline"]

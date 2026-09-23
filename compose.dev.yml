@@ -67,7 +67,8 @@ services:
       - KEDB_DOCS_PATH=/data/kedb/articles
       - LITELLM_BASE_URL=http://litellm:4000
     volumes:
-      - ./app:/app/app
+      - ./packages:/app/packages
+      - ./apps:/app/apps
       - ./scripts:/app/scripts
       - ./tests:/app/tests
       - ./data/processed:/data/processed
@@ -75,7 +76,7 @@ services:
       - ./data/fixtures:/data/fixtures
       - kedb_data:/data/kedb
       - ./data/kedb/articles:/data/kedb/articles
-    command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
+    command: ["uv", "run", "uvicorn", "pi_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/apps/api/src", "--reload-dir", "/app/packages/core/src"]
     depends_on:
       chromadb:
         condition: service_healthy

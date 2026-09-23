@@ -3,11 +3,11 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import Settings
-from app.fixtures.kyocera_demo import build_demo_articulo
-from app.main import create_app
-from app.schemas import KedbArticuloUpdate, KedbEstado
-from app.storage.kedb_store.store import InvalidEstadoTransition, KedbStore
+from pi_api.main import create_app
+from pi_core.config import Settings
+from pi_core.fixtures.kyocera_demo import build_demo_articulo
+from pi_core.schemas import KedbArticuloUpdate, KedbEstado
+from pi_core.storage.kedb_store.store import InvalidEstadoTransition, KedbStore
 
 
 @pytest.fixture
@@ -72,7 +72,7 @@ def test_editing_content_without_estado_is_unaffected_by_fsm(store):
 
 
 def test_patch_endpoint_returns_409_on_invalid_transition(monkeypatch, tmp_path):
-    from app.api.routers import kedb as kedb_router
+    from pi_api.routers import kedb as kedb_router
 
     settings = Settings(
         kedb_db_path=str(tmp_path / "http_fsm.db"),

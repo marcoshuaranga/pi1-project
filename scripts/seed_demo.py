@@ -10,9 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app.config import get_settings
-from app.fixtures.kyocera_demo import ensure_clean_demo_articulo
-from app.storage.kedb_store.store import KedbStore
+from pi_core.config import get_settings
+from pi_core.fixtures.kyocera_demo import ensure_clean_demo_articulo
+from pi_core.storage.kedb_store.store import KedbStore
 
 
 def seed_demo_kedb():
@@ -26,7 +26,7 @@ def seed_demo_kedb():
     print(f"  tickets_fuente={len(articulo.tickets_fuente)}")
 
     try:
-        from app.pipeline.enrich.reindex import reindex_kyocera_cluster
+        from pi_core.enrich.reindex import reindex_kyocera_cluster
 
         n = reindex_kyocera_cluster(ticket_ids=list(articulo.tickets_fuente))
         print(f"  tickets Chroma enriquecidos: {n}")
@@ -63,7 +63,7 @@ def seed_golden_set_sample(n: int = 50):
 
 def seed_evaluation(sample_size: int = 50):
     """Precompute C9 metrics cache for demo backup figures."""
-    from app.evaluation.metrics import EvaluationFramework
+    from pi_core.evaluation.metrics import EvaluationFramework
 
     settings = get_settings()
     processed = Path(settings.data_processed_path)

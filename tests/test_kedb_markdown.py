@@ -4,12 +4,12 @@ every writer that used to reimplement it independently."""
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import Settings
-from app.fixtures.kyocera_demo import build_demo_articulo
-from app.main import create_app
-from app.schemas import KedbEstado
-from app.storage.kedb_store.markdown import list_markdown_docs, read_markdown, write_markdown
-from app.storage.kedb_store.store import KedbStore
+from pi_api.main import create_app
+from pi_core.config import Settings
+from pi_core.fixtures.kyocera_demo import build_demo_articulo
+from pi_core.schemas import KedbEstado
+from pi_core.storage.kedb_store.markdown import list_markdown_docs, read_markdown, write_markdown
+from pi_core.storage.kedb_store.store import KedbStore
 
 
 @pytest.fixture
@@ -95,7 +95,7 @@ def test_publish_markdown_is_a_noop_for_non_validated_articles(store):
 
 
 def test_get_doc_lazily_materializes_through_store_publish_markdown(monkeypatch, store):
-    from app.api.routers import kedb as kedb_router
+    from pi_api.routers import kedb as kedb_router
 
     articulo = _seed(store, KedbEstado.VALIDADO, "KEDB-LAZY", titulo="Materializado al vuelo")
     assert read_markdown("KEDB-LAZY", store.settings) is None  # nothing on disk yet
@@ -112,7 +112,7 @@ def test_get_doc_lazily_materializes_through_store_publish_markdown(monkeypatch,
 
 
 def test_get_doc_404s_for_non_validated_article_without_writing_it(monkeypatch, store):
-    from app.api.routers import kedb as kedb_router
+    from pi_api.routers import kedb as kedb_router
 
     articulo = _seed(store, KedbEstado.BORRADOR, "KEDB-DRAFT2")
 

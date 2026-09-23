@@ -3,10 +3,10 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import Settings
-from app.main import create_app
-from app.schemas import SolucionSugerida
-from app.storage.kedb_store.store import KedbStore
+from pi_api.main import create_app
+from pi_core.config import Settings
+from pi_core.schemas import SolucionSugerida
+from pi_core.storage.kedb_store.store import KedbStore
 
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def client():
 
 
 def test_load_kyocera_fixture_has_cluster_size():
-    from app.fixtures.kyocera_demo import load_kyocera_ticket_ids
+    from pi_core.fixtures.kyocera_demo import load_kyocera_ticket_ids
 
     ids = load_kyocera_ticket_ids()
     assert len(ids) >= 100
@@ -24,8 +24,8 @@ def test_load_kyocera_fixture_has_cluster_size():
 
 def test_demo_cycle_seed_approve_rag(client, monkeypatch, tmp_path):
     """Escena 2→3: seed fixture, approve indexes KEDB, ticket retrieve includes it."""
-    from app.api.deps import get_orchestrator
-    from app.api.routers import kedb as kedb_router
+    from pi_api.deps import get_orchestrator
+    from pi_api.routers import kedb as kedb_router
 
     db_path = tmp_path / "demo_kedb.db"
     docs_path = tmp_path / "articles"
@@ -59,11 +59,11 @@ def test_demo_cycle_seed_approve_rag(client, monkeypatch, tmp_path):
     monkeypatch.setattr(kedb_router, "get_store", lambda: store)
     monkeypatch.setattr(kedb_router, "get_rag", lambda: mock_rag)
     monkeypatch.setattr(
-        "app.fixtures.kyocera_demo.load_kyocera_ticket_ids",
+        "pi_core.fixtures.kyocera_demo.load_kyocera_ticket_ids",
         lambda **kwargs: ["96044", "95984", "95645", "95439", "94922"] * 28 + ["96044", "95984"],
     )
     monkeypatch.setattr(
-        "app.pipeline.enrich.reindex.reindex_kyocera_cluster",
+        "pi_core.enrich.reindex.reindex_kyocera_cluster",
         lambda **kwargs: 142,
     )
 
@@ -106,14 +106,14 @@ def test_demo_cycle_seed_approve_rag(client, monkeypatch, tmp_path):
 
     class MockAnonymizer:
         def anonymize(self, text):
-            from app.pipeline.anonymize.anonymizer import AnonymizationResult
+            from pi_core.anonymize.anonymizer import AnonymizationResult
 
             return AnonymizationResult(text=text)
 
-    monkeypatch.setattr("app.agents.orchestrator.graph.get_anonymizer", lambda: MockAnonymizer())
-    monkeypatch.setattr("app.agents.orchestrator.graph.ClassifierAgent", lambda: MockClassifier())
-    monkeypatch.setattr("app.agents.orchestrator.graph.PrioritizerAgent", lambda: MockPrioritizer())
-    monkeypatch.setattr("app.agents.orchestrator.graph.RAGAgent", lambda: mock_rag)
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.get_anonymizer", lambda: MockAnonymizer())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.ClassifierAgent", lambda: MockClassifier())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.PrioritizerAgent", lambda: MockPrioritizer())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.RAGAgent", lambda: mock_rag)
     get_orchestrator.cache_clear()
 
     ticket = client.post(
@@ -130,7 +130,7 @@ def test_demo_cycle_seed_approve_rag(client, monkeypatch, tmp_path):
 
 
 def test_build_demo_articulo_uses_ids():
-    from app.fixtures.kyocera_demo import build_demo_articulo
+    from pi_core.fixtures.kyocera_demo import build_demo_articulo
 
     art = build_demo_articulo(ticket_ids=["1", "2", "3"], articulo_id="KEDB-TEST")
     assert art.articulo_id == "KEDB-TEST"

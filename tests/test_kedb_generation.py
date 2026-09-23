@@ -1,10 +1,10 @@
 """KEDB generation policy tests."""
 
-from app.services.kedb_generation import KedbGenerationPolicy, KedbGenerationStatus
+from pi_core.services.kedb_generation import KedbGenerationPolicy, KedbGenerationStatus
 
 
 def test_generator_owns_primary_selection_and_fallback_policy():
-    from app.agents.kedb_generator.agent import KedbGeneratorAgent
+    from pi_core.agents.kedb_generator.agent import KedbGeneratorAgent
 
     generator = object.__new__(KedbGeneratorAgent)
     calls = []
@@ -20,7 +20,7 @@ def test_generator_owns_primary_selection_and_fallback_policy():
 
 
 def test_generator_uses_all_generation_and_falls_back_when_empty():
-    from app.agents.kedb_generator.agent import KedbGeneratorAgent
+    from pi_core.agents.kedb_generator.agent import KedbGeneratorAgent
 
     generator = object.__new__(KedbGeneratorAgent)
     calls = []

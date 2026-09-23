@@ -1,8 +1,8 @@
 """RAG retrieval seam tests."""
 
-from app.agents.rag.agent import RAGAgent
-from app.schemas import SolucionSugerida
-from app.storage.vector_db.search import search_validated_kedb
+from pi_core.agents.rag.agent import RAGAgent
+from pi_core.schemas import SolucionSugerida
+from pi_core.storage.vector_db.search import search_validated_kedb
 
 
 def _results(*ids: str) -> dict:

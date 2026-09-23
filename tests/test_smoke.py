@@ -5,9 +5,9 @@ from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import create_app
-from app.pipeline.anonymize.anonymizer import Anonymizer
-from app.pipeline.ingest.normalize import assign_split, clean_html, normalize_category
+from pi_api.main import create_app
+from pi_core.anonymize.anonymizer import Anonymizer
+from pi_pipeline.ingest.normalize import assign_split, clean_html, normalize_category
 
 
 @pytest.fixture
@@ -84,16 +84,16 @@ def test_create_ticket_no_chroma(client, monkeypatch):
 
     class MockAnonymizer:
         def anonymize(self, text):
-            from app.pipeline.anonymize.anonymizer import AnonymizationResult
+            from pi_core.anonymize.anonymizer import AnonymizationResult
 
             return AnonymizationResult(text=text)
 
-    monkeypatch.setattr("app.agents.orchestrator.graph.get_anonymizer", lambda: MockAnonymizer())
-    monkeypatch.setattr("app.agents.orchestrator.graph.ClassifierAgent", lambda: MockClassifier())
-    monkeypatch.setattr("app.agents.orchestrator.graph.PrioritizerAgent", lambda: MockPrioritizer())
-    monkeypatch.setattr("app.agents.orchestrator.graph.RAGAgent", lambda: MockRAG())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.get_anonymizer", lambda: MockAnonymizer())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.ClassifierAgent", lambda: MockClassifier())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.PrioritizerAgent", lambda: MockPrioritizer())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.RAGAgent", lambda: MockRAG())
 
-    from app.api.deps import get_kedb_store, get_orchestrator
+    from pi_api.deps import get_kedb_store, get_orchestrator
 
     get_orchestrator.cache_clear()
     get_kedb_store.cache_clear()

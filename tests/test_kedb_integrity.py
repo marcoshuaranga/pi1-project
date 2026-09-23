@@ -3,12 +3,12 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import Settings
-from app.fixtures.kyocera_demo import build_demo_articulo
-from app.main import create_app
-from app.schemas import KedbEstado
-from app.services.kedb_integrity import check_all, check_articulo
-from app.storage.kedb_store.store import KedbStore
+from pi_api.main import create_app
+from pi_core.config import Settings
+from pi_core.fixtures.kyocera_demo import build_demo_articulo
+from pi_core.schemas import KedbEstado
+from pi_core.services.kedb_integrity import check_all, check_articulo
+from pi_core.storage.kedb_store.store import KedbStore
 
 
 class FakeCollection:
@@ -75,7 +75,7 @@ def test_check_all_skips_archivado_by_default(store):
 
 
 def test_integridad_endpoint_reports_articles_with_gaps(monkeypatch, tmp_path):
-    from app.api.routers import kedb as kedb_router
+    from pi_api.routers import kedb as kedb_router
 
     settings = Settings(
         kedb_db_path=str(tmp_path / "http_integrity.db"),
@@ -95,7 +95,7 @@ def test_integridad_endpoint_reports_articles_with_gaps(monkeypatch, tmp_path):
     kedb_router.get_store.cache_clear()
     monkeypatch.setattr(kedb_router, "get_store", lambda: store)
     monkeypatch.setattr(
-        "app.services.kedb_integrity.get_tickets_collection",
+        "pi_core.services.kedb_integrity.get_tickets_collection",
         lambda settings=None: FakeCollection(existing={"1", "2"}),
     )
 

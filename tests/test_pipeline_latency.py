@@ -22,8 +22,8 @@ def test_orchestrator_overhead_is_within_budget(monkeypatch):
 
     Not a substitute for the live DoD test below — this only catches
     accidental blocking work added to the orchestration layer itself."""
-    from app.agents.orchestrator.graph import Orchestrator
-    from app.pipeline.anonymize.anonymizer import AnonymizationResult
+    from pi_core.agents.orchestrator.graph import Orchestrator
+    from pi_core.anonymize.anonymizer import AnonymizationResult
 
     class MockAnonymizer:
         def anonymize(self, text):
@@ -41,10 +41,10 @@ def test_orchestrator_overhead_is_within_budget(monkeypatch):
         def retrieve(self, texto, categoria=None):
             return []
 
-    monkeypatch.setattr("app.agents.orchestrator.graph.get_anonymizer", lambda: MockAnonymizer())
-    monkeypatch.setattr("app.agents.orchestrator.graph.ClassifierAgent", lambda: MockClassifier())
-    monkeypatch.setattr("app.agents.orchestrator.graph.PrioritizerAgent", lambda: MockPrioritizer())
-    monkeypatch.setattr("app.agents.orchestrator.graph.RAGAgent", lambda: MockRAG())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.get_anonymizer", lambda: MockAnonymizer())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.ClassifierAgent", lambda: MockClassifier())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.PrioritizerAgent", lambda: MockPrioritizer())
+    monkeypatch.setattr("pi_core.agents.orchestrator.graph.RAGAgent", lambda: MockRAG())
 
     orchestrator = Orchestrator()
     start = time.monotonic()
@@ -62,8 +62,8 @@ def test_ticket_pipeline_meets_30s_dod_live():
     (`docker compose up` + `pipeline full`) and a working embedding
     provider. Skips rather than fails when that stack isn't available, so
     the unit test suite stays green without live services."""
-    from app.agents.orchestrator.graph import Orchestrator
-    from app.storage.vector_db.client import get_tickets_collection
+    from pi_core.agents.orchestrator.graph import Orchestrator
+    from pi_core.storage.vector_db.client import get_tickets_collection
 
     try:
         get_tickets_collection().count()
