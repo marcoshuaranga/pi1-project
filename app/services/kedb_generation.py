@@ -24,6 +24,24 @@ class KedbGenerationOutcome:
     primary_error: Exception | None = None
     fallback_error: Exception | None = None
 
+    def describe_failure(self) -> str | None:
+        """Explain a FAILED outcome from its error/primary_error/fallback_error
+        combination, or None if there's nothing to explain (caller decides what
+        that means)."""
+        if self.error is None:
+            return None
+        if self.primary_error is not None:
+            if self.fallback_error is None:
+                return (
+                    "KEDB generation failed; fallback returned no article: "
+                    f"primary={self.primary_error}"
+                )
+            return (
+                "KEDB generation and fallback both failed: "
+                f"primary={self.primary_error}; fallback={self.error}"
+            )
+        return f"KEDB fallback failed: {self.error}"
+
 
 class KedbGenerationPolicy:
     """Apply primary generation, then an explicit demo fallback policy."""

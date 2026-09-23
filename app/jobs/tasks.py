@@ -17,22 +17,10 @@ def _generate_kedb_sync(max_articles: int, keyword: str | None) -> dict[str, Any
     generator = KedbGeneratorAgent()
     outcome = generator.generate(max_articles=max_articles, keyword=keyword)
     if outcome.status == KedbGenerationStatus.FAILED:
-        if outcome.error:
-            if outcome.primary_error:
-                if outcome.fallback_error is None:
-                    message = (
-                        "KEDB generation failed; fallback returned no article: "
-                        f"primary={outcome.primary_error}"
-                    )
-                else:
-                    message = (
-                        "KEDB generation and fallback both failed: "
-                        f"primary={outcome.primary_error}; fallback={outcome.error}"
-                    )
-            else:
-                message = f"KEDB fallback failed: {outcome.error}"
-            raise RuntimeError(message) from outcome.error
-        raise RuntimeError("KEDB generation failed without an error")
+        message = outcome.describe_failure()
+        if message is None:
+            raise RuntimeError("KEDB generation failed without an error")
+        raise RuntimeError(message) from outcome.error
     if outcome.status == KedbGenerationStatus.EMPTY:
         return {"generated": 0, "articulos": [], "status": outcome.status.value}
 
