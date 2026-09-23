@@ -3,21 +3,15 @@
 import json
 from collections import Counter
 from datetime import UTC, datetime
-from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
+from app.api.deps import get_kedb_store as get_store
 from app.config import get_settings
 from app.schemas import MetricasEvaluacion
-from app.storage.kedb_store.store import KedbStore
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
-
-
-@lru_cache
-def get_store() -> KedbStore:
-    return KedbStore()
 
 
 @router.get("/evaluacion", response_model=MetricasEvaluacion)

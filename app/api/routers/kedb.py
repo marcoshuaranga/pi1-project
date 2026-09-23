@@ -8,17 +8,13 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from app.agents.rag.agent import RAGAgent
+from app.api.deps import get_kedb_store as get_store
 from app.jobs.redis import get_redis_pool
 from app.schemas import JobEnqueueResponse, KedbArticulo, KedbArticuloUpdate, KedbEstado
 from app.services.kedb_publisher import KedbPublisher
-from app.storage.kedb_store.store import InvalidEstadoTransition, KedbStore
+from app.storage.kedb_store.store import InvalidEstadoTransition
 
 router = APIRouter(prefix="/kedb", tags=["kedb"])
-
-
-@lru_cache
-def get_store() -> KedbStore:
-    return KedbStore()
 
 
 @lru_cache
