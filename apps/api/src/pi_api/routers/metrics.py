@@ -73,6 +73,67 @@ async def enqueue_evaluacion():
     )
 
 
+@router.get("/evaluacion-golden", response_model=MetricasEvaluacion)
+async def get_evaluacion_golden():
+    """C9 sobre golden_set_sample.json (200 tickets, doble etiquetado por 2 expertos).
+
+    Ver packages/core/src/pi_core/evaluation/golden_set.py y scripts/build_golden_set.py para generarlo.
+    A diferencia de /metrics/evaluacion (muestra aleatoria de tickets_eval.json),
+    este endpoint también reporta Kappa inter-anotador.
+    """
+    settings = get_settings()
+    processed = Path(settings.data_processed_path)
+    cached = processed / "evaluation_results_golden.json"
+
+    if cached.exists():
+        data = json.loads(cached.read_text(encoding="utf-8"))
+        fecha = data.get("fecha_calculo")
+        if isinstance(fecha, str):
+            try:
+                fecha_calculo = datetime.fromisoformat(fecha)
+            except ValueError:
+                fecha_calculo = datetime.now(UTC)
+        else:
+            fecha_calculo = datetime.now(UTC)
+        return MetricasEvaluacion(
+            f1_macro=data.get("f1_macro", 0.0),
+            recall_at_5=data.get("recall_at_5", 0.0),
+            kappa=data.get("kappa"),
+            fecha_calculo=fecha_calculo,
+            muestra_tickets=data.get("muestra", 0),
+        )
+
+    return MetricasEvaluacion(
+        f1_macro=0.0,
+        recall_at_5=0.0,
+        kappa=None,
+        fecha_calculo=datetime.now(UTC),
+        muestra_tickets=0,
+    )
+
+
+@router.post("/evaluacion-golden", status_code=202)
+async def enqueue_evaluacion_golden():
+    """Enqueue golden-set evaluation recompute on the ARQ worker."""
+    from fastapi.responses import JSONResponse
+
+    from pi_core.queue import get_redis_pool
+    from pi_core.schemas import JobEnqueueResponse
+
+    redis = await get_redis_pool()
+    job = await redis.enqueue_job("run_golden_evaluation")
+    if job is None:
+        raise HTTPException(status_code=409, detail="No se pudo encolar el job (id duplicado)")
+    return JSONResponse(
+        status_code=202,
+        content=JobEnqueueResponse(
+            job_id=job.job_id,
+            status="queued",
+            task="run_golden_evaluation",
+        ).model_dump(),
+    )
+
+
 @router.get("/dashboard")
 async def get_dashboard(categoria: str | None = None):
     """HU15 — coordinator dashboard."""

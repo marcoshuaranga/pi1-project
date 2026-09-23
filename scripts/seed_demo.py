@@ -43,6 +43,13 @@ def seed_golden_set_sample(n: int = 50):
         print("No eval split found — run pipeline first")
         return
 
+    out = processed / "golden_set_sample.json"
+    if out.exists() and any(
+        e.get("doble_anotacion") is not None for e in json.loads(out.read_text(encoding="utf-8"))
+    ):
+        print(f"Golden set real (doble anotación) ya existe en {out} — no se sobrescribe con el stub")
+        return
+
     tickets = json.loads(eval_path.read_text(encoding="utf-8"))
     golden = []
     for t in tickets[:n]:
@@ -56,7 +63,6 @@ def seed_golden_set_sample(n: int = 50):
             }
         )
 
-    out = processed / "golden_set_sample.json"
     out.write_text(json.dumps(golden, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Golden set sample: {len(golden)} entries → {out}")
 

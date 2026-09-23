@@ -47,6 +47,13 @@ def _run_evaluation_sync() -> dict[str, Any]:
     return EvaluationFramework().run_evaluation()
 
 
+def _run_golden_evaluation_sync() -> dict[str, Any]:
+    from pi_core.evaluation.metrics import EvaluationFramework
+
+    # Framework already persists evaluation_results_golden.json with fecha_calculo.
+    return EvaluationFramework().run_golden_evaluation()
+
+
 async def generate_kedb(
     ctx: dict[str, Any],
     max_articles: int = 50,
@@ -57,5 +64,10 @@ async def generate_kedb(
 
 
 async def run_evaluation(ctx: dict[str, Any]) -> dict[str, Any]:
-    """Recompute F1 / Recall@5 and persist cache file."""
+    """Recompute F1 / Recall@5 (muestra aleatoria de tickets_eval.json) and persist cache file."""
     return await asyncio.to_thread(_run_evaluation_sync)
+
+
+async def run_golden_evaluation(ctx: dict[str, Any]) -> dict[str, Any]:
+    """Recompute F1 / Recall@5 / Kappa sobre golden_set_sample.json and persist cache file."""
+    return await asyncio.to_thread(_run_golden_evaluation_sync)
