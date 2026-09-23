@@ -132,15 +132,18 @@ async def list_docs(estado: str | None = "validado"):
 @router.get("/docs/{articulo_id}")
 async def get_doc(articulo_id: str):
     """Return Markdown content for a published KEDB article."""
-    from app.storage.kedb_store.markdown import read_markdown, write_markdown
+    from app.storage.kedb_store.markdown import read_markdown
 
-    content = read_markdown(articulo_id)
+    store = get_store()
+    content = read_markdown(articulo_id, store.settings)
     if content is None:
-        articulo = get_store().get(articulo_id)
+        articulo = store.get(articulo_id)
         if not articulo or articulo.estado != KedbEstado.VALIDADO:
             raise HTTPException(status_code=404, detail="Documento no publicado")
-        path = write_markdown(articulo)
-        content = path.read_text(encoding="utf-8")
+        # publish_markdown re-checks estado itself — kept here only to 404
+        # instead of silently returning nothing for a non-validated article.
+        store.publish_markdown(articulo)
+        content = read_markdown(articulo_id, store.settings)
     return {"articulo_id": articulo_id, "markdown": content}
 
 
