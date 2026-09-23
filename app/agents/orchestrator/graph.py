@@ -69,50 +69,71 @@ class Orchestrator:
             callback(evento)
         return evento
 
+    def _instrumented_node(
+        self,
+        agente: AgenteTipo,
+        step: Callable[[PipelineState], tuple[dict, dict]],
+        entrada: Callable[[PipelineState], dict] | None = None,
+    ) -> Callable[[PipelineState], dict]:
+        """Wrap a step (state -> (state_updates, evento_salida)) with the
+        emit(INICIO) -> call -> emit(FIN) ritual every graph node needs."""
+
+        def node(state: PipelineState) -> dict:
+            tid = state["ticket_id"]
+            self._emit(agente, tid, EventoTipo.INICIO, entrada(state) if entrada else None)
+            updates, salida = step(state)
+            self._emit(agente, tid, EventoTipo.FIN, salida=salida)
+            return updates
+
+        return node
+
+    def _step_anonymize(self, state: PipelineState) -> tuple[dict, dict]:
+        result = self.anonymizer.anonymize(state["texto"])
+        updates = {"texto_anon": result.text}
+        return updates, updates
+
+    def _step_classify(self, state: PipelineState) -> tuple[dict, dict]:
+        out = self.classifier.classify(state["texto_anon"])
+        return {"categoria": out["categoria"], "confianza": out["confianza"]}, out
+
+    def _step_prioritize(self, state: PipelineState) -> tuple[dict, dict]:
+        out = self.prioritizer.prioritize(state["texto_anon"], state["categoria"])
+        updates = {
+            "prioridad": out["prioridad"],
+            "justificacion_prioridad": out["justificacion"],
+        }
+        return updates, out
+
+    def _step_rag(self, state: PipelineState) -> tuple[dict, dict]:
+        soluciones = self.rag.retrieve(state["texto_anon"], state.get("categoria"))
+        out = [s.model_dump() for s in soluciones]
+        # salida carries only the count, not the full solution list — keeps
+        # the WS pipeline event payload small.
+        return {"soluciones": out}, {"count": len(out)}
+
     def _build_graph(self):
         graph = StateGraph(PipelineState)
 
-        def anonymize_node(state: PipelineState) -> dict:
-            tid = state["ticket_id"]
-            self._emit(AgenteTipo.ORQUESTADOR, tid, EventoTipo.INICIO, {"texto": state["texto"]})
-            result = self.anonymizer.anonymize(state["texto"])
-            # Anonymization has no dedicated AgenteTipo (it's C1/data-layer, not
-            # one of the 5 domain agents) so it's attributed to ORQUESTADOR like
-            # its INICIO above. This FIN pairs with that INICIO for this node;
-            # process_ticket emits a separate ORQUESTADOR FIN for the whole
-            # pipeline's completion after the rag node runs.
-            self._emit(AgenteTipo.ORQUESTADOR, tid, EventoTipo.FIN, salida={"texto_anon": result.text})
-            return {"texto_anon": result.text}
-
-        def classify_node(state: PipelineState) -> dict:
-            tid = state["ticket_id"]
-            self._emit(AgenteTipo.CLASIFICADOR, tid, EventoTipo.INICIO)
-            out = self.classifier.classify(state["texto_anon"])
-            self._emit(AgenteTipo.CLASIFICADOR, tid, EventoTipo.FIN, salida=out)
-            return {"categoria": out["categoria"], "confianza": out["confianza"]}
-
-        def prioritize_node(state: PipelineState) -> dict:
-            tid = state["ticket_id"]
-            self._emit(AgenteTipo.PRIORIZADOR, tid, EventoTipo.INICIO)
-            out = self.prioritizer.prioritize(state["texto_anon"], state["categoria"])
-            self._emit(AgenteTipo.PRIORIZADOR, tid, EventoTipo.FIN, salida=out)
-            return {
-                "prioridad": out["prioridad"],
-                "justificacion_prioridad": out["justificacion"],
-            }
-
-        def rag_node(state: PipelineState) -> dict:
-            tid = state["ticket_id"]
-            self._emit(AgenteTipo.RAG, tid, EventoTipo.INICIO)
-            soluciones = self.rag.retrieve(state["texto_anon"], state.get("categoria"))
-            out = [s.model_dump() for s in soluciones]
-            self._emit(AgenteTipo.RAG, tid, EventoTipo.FIN, salida={"count": len(out)})
-            return {"soluciones": out}
-
-        graph.add_node("anonymize", anonymize_node)
-        graph.add_node("classify", classify_node)
-        graph.add_node("prioritize", prioritize_node)
-        graph.add_node("rag", rag_node)
+        # Anonymization has no dedicated AgenteTipo (it's C1/data-layer, not
+        # one of the 5 domain agents) so it's attributed to ORQUESTADOR here.
+        # Its FIN pairs with this node's INICIO; process_ticket emits a
+        # separate ORQUESTADOR FIN for the whole pipeline's completion after
+        # the rag node runs.
+        graph.add_node(
+            "anonymize",
+            self._instrumented_node(
+                AgenteTipo.ORQUESTADOR,
+                self._step_anonymize,
+                entrada=lambda state: {"texto": state["texto"]},
+            ),
+        )
+        graph.add_node(
+            "classify", self._instrumented_node(AgenteTipo.CLASIFICADOR, self._step_classify)
+        )
+        graph.add_node(
+            "prioritize", self._instrumented_node(AgenteTipo.PRIORIZADOR, self._step_prioritize)
+        )
+        graph.add_node("rag", self._instrumented_node(AgenteTipo.RAG, self._step_rag))
 
         graph.set_entry_point("anonymize")
         graph.add_edge("anonymize", "classify")

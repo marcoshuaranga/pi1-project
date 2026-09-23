@@ -215,7 +215,15 @@ class KedbStore:
         """Publish Markdown projection. By default only validated articles (live docs)."""
         from app.storage.kedb_store.markdown import write_markdown
 
-        articulos = self.list_all(estado=KedbEstado.VALIDADO) if solo_validados else self.list_all()
+        if solo_validados:
+            articulos = self.list_all(estado=KedbEstado.VALIDADO)
+            for articulo in articulos:
+                self.publish_markdown(articulo)
+            return len(articulos)
+
+        # Full dump intentionally bypasses the "validated only" rule — every
+        # estado gets a file, e.g. for an admin backup of the whole store.
+        articulos = self.list_all()
         for articulo in articulos:
             write_markdown(articulo, self.settings)
         return len(articulos)

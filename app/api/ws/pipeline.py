@@ -5,6 +5,7 @@ import logging
 from collections import defaultdict
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketState
 
 from app.api.deps import get_orchestrator
 from app.api.state import create_pending_ticket, fail_ticket, save_ticket
@@ -76,6 +77,14 @@ async def pipeline_ws(websocket: WebSocket, ticket_id: str):
                 payload = {"type": "result", "data": response.model_dump()}
                 # Fan-out so a client that left and re-subscribed still gets the result.
                 await broadcast_json(ticket_id, payload)
+                if websocket.application_state != WebSocketState.CONNECTED:
+                    # This connection died while the pipeline was running — the
+                    # broadcast above already discovered that (send raised, got
+                    # dropped from _connections) and flipped application_state.
+                    # Looping back to receive_json() would raise RuntimeError
+                    # instead of the WebSocketDisconnect below, since it checks
+                    # application_state before it ever touches the socket.
+                    break
     except WebSocketDisconnect:
         pass
     finally:

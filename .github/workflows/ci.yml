@@ -1,22 +1,34 @@
 name: CI
 
-# Deshabilitado: no corre en push/PR. Reactivar con:
-#   on:
-#     push:
-#       branches: [main, master]
-#     pull_request:
 on:
+  push:
+    branches: [main, master]
+  pull_request:
   workflow_dispatch:
+
+# Superseded runs on the same PR/branch are wasted minutes — cancel them
+# when a new commit lands instead of letting them finish.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: nothing in this workflow pushes commits, comments, or
+# publishes images — read-only checkout is all any job needs.
+permissions:
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - uses: astral-sh/setup-uv@v3
         with:
           version: "0.11.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
         run: uv sync --locked --extra dev
@@ -27,13 +39,38 @@ jobs:
       - name: Test
         run: uv run pytest tests/ -v
 
-  docker:
+  docker-api:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
+      - uses: docker/setup-buildx-action@v3
+
       - name: Build API image
-        run: docker build -t pi1-api .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: pi1-api:ci
+          cache-from: type=gha,scope=pi1-api
+          cache-to: type=gha,mode=max,scope=pi1-api
+
+  docker-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
 
       - name: Build Web image
-        run: docker build -t pi1-web ./web --build-arg VITE_API_URL=http://localhost:8000
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          push: false
+          tags: pi1-web:ci
+          build-args: |
+            VITE_API_URL=http://localhost:8000
+          cache-from: type=gha,scope=pi1-web
+          cache-to: type=gha,mode=max,scope=pi1-web

@@ -94,6 +94,91 @@ export function newTicketId(): string {
   return `T-${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 }
 
+/**
+ * Owns the pipeline WS protocol: URL, connection, JSON parsing, event dispatch.
+ *
+ * `sendProcessTexto` set → sends {action:"process"} on open (start a run).
+ * Left unset → stays subscribed only (attach to a run already in progress).
+ *
+ * `onServerError` covers a server-sent {type:"error"} frame — both callers
+ * treat that as a real pipeline failure. `onTransportError` covers WS-level
+ * failure (construction throw, connection error, malformed frame) and is
+ * opt-in: a caller that also polls REST as its source of truth (resume) can
+ * leave it unset and let the transport fail silently.
+ */
+function connectPipelineWs(
+  ticketId: string,
+  options: {
+    sendProcessTexto?: string;
+    onEvent?: (evento: PipelineWsEvent) => void;
+    onResult?: (result: TicketResponse) => void;
+    onServerError?: (message: string) => void;
+    onTransportError?: (message: string) => void;
+    onClose?: () => void;
+    signal?: AbortSignal;
+  }
+): void {
+  const url = `${wsBaseUrl()}/ws/pipeline/${ticketId}`;
+  let ws: WebSocket;
+  try {
+    ws = new WebSocket(url);
+  } catch (e) {
+    options.onTransportError?.(e instanceof Error ? e.message : String(e));
+    return;
+  }
+
+  const cleanup = () => {
+    options.signal?.removeEventListener("abort", onAbort);
+    try {
+      ws.close();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const onAbort = () => cleanup();
+  options.signal?.addEventListener("abort", onAbort, { once: true });
+
+  if (options.sendProcessTexto !== undefined) {
+    const texto = options.sendProcessTexto;
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ action: "process", texto }));
+    };
+  }
+
+  ws.onmessage = (msg) => {
+    try {
+      const data = JSON.parse(msg.data as string);
+      if (data?.type === "result" && data.data) {
+        options.onResult?.(data.data as TicketResponse);
+        cleanup();
+        return;
+      }
+      if (data?.type === "error") {
+        options.onServerError?.(data.message || "El pipeline falló en el servidor.");
+        cleanup();
+        return;
+      }
+      if (data?.agente && data?.tipo) {
+        options.onEvent?.(data as PipelineWsEvent);
+      }
+    } catch (e) {
+      options.onTransportError?.(e instanceof Error ? e.message : String(e));
+      cleanup();
+    }
+  };
+
+  ws.onerror = () => {
+    options.onTransportError?.("No se pudo conectar al WebSocket del pipeline.");
+    cleanup();
+  };
+
+  ws.onclose = () => {
+    options.signal?.removeEventListener("abort", onAbort);
+    options.onClose?.();
+  };
+}
+
 /** Process ticket via WebSocket pipeline events; rejects on WS failure. */
 export function processTicketViaWs(
   texto: string,
@@ -105,73 +190,42 @@ export function processTicketViaWs(
   }
 ): Promise<TicketResponse> {
   const ticketId = options?.ticketId ?? newTicketId();
-  const url = `${wsBaseUrl()}/ws/pipeline/${ticketId}`;
   const timeoutMs = options?.timeoutMs ?? WS_PROCESS_TIMEOUT_MS;
 
   return new Promise((resolve, reject) => {
     let settled = false;
-    let ws: WebSocket;
-    try {
-      ws = new WebSocket(url);
-    } catch (e) {
-      reject(e instanceof Error ? e : new Error(String(e)));
-      return;
-    }
-
-    const finish = (fn: () => void) => {
+    const settle = (fn: () => void) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      options?.signal?.removeEventListener("abort", onAbort);
-      try {
-        ws.close();
-      } catch {
-        /* ignore */
-      }
       fn();
     };
 
     const timer = setTimeout(() => {
-      finish(() => reject(new Error("WebSocket del pipeline agotó el tiempo de espera.")));
+      settle(() => reject(new Error("WebSocket del pipeline agotó el tiempo de espera.")));
     }, timeoutMs);
 
-    const onAbort = () => {
-      finish(() => reject(new DOMException("Procesamiento cancelado", "AbortError")));
-    };
-    options?.signal?.addEventListener("abort", onAbort, { once: true });
+    if (options?.signal?.aborted) {
+      settle(() => reject(new DOMException("Procesamiento cancelado", "AbortError")));
+      return;
+    }
+    options?.signal?.addEventListener(
+      "abort",
+      () => settle(() => reject(new DOMException("Procesamiento cancelado", "AbortError"))),
+      { once: true }
+    );
 
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ action: "process", texto }));
-    };
-
-    ws.onerror = () => {
-      finish(() => reject(new Error("No se pudo conectar al WebSocket del pipeline.")));
-    };
-
-    ws.onclose = () => {
-      if (!settled) {
-        finish(() => reject(new Error("WebSocket cerrado antes de recibir el resultado.")));
-      }
-    };
-
-    ws.onmessage = (msg) => {
-      try {
-        const data = JSON.parse(msg.data as string);
-        if (data?.type === "result" && data.data) {
-          finish(() => resolve(data.data as TicketResponse));
-          return;
-        }
-        if (data?.type === "error") {
-          finish(() => reject(new Error(data.message || "El pipeline falló en el servidor.")));
-          return;
-        }
-        if (data?.agente && data?.tipo) {
-          options?.onEvent?.(data as PipelineWsEvent);
-        }
-      } catch (e) {
-        finish(() => reject(e instanceof Error ? e : new Error(String(e))));
-      }
-    };
+    connectPipelineWs(ticketId, {
+      sendProcessTexto: texto,
+      signal: options?.signal,
+      onEvent: options?.onEvent,
+      onResult: (result) => settle(() => resolve(result)),
+      onServerError: (message) => settle(() => reject(new Error(message))),
+      onTransportError: (message) => settle(() => reject(new Error(message))),
+      onClose: () => {
+        settle(() => reject(new Error("WebSocket cerrado antes de recibir el resultado.")));
+      },
+    });
   });
 }
 
@@ -185,52 +239,14 @@ export function subscribePipelineWs(
     signal?: AbortSignal;
   }
 ): void {
-  const url = `${wsBaseUrl()}/ws/pipeline/${ticketId}`;
-  let ws: WebSocket;
-  try {
-    ws = new WebSocket(url);
-  } catch {
-    return;
-  }
-
-  const cleanup = () => {
-    options?.signal?.removeEventListener("abort", onAbort);
-    try {
-      ws.close();
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const onAbort = () => cleanup();
-  options?.signal?.addEventListener("abort", onAbort, { once: true });
-
-  // Stay subscribed only — do not send { action: "process" }.
-  ws.onmessage = (msg) => {
-    try {
-      const data = JSON.parse(msg.data as string);
-      if (data?.type === "result" && data.data) {
-        options?.onResult?.(data.data as TicketResponse);
-        cleanup();
-        return;
-      }
-      if (data?.type === "error") {
-        options?.onError?.(data.message || "El pipeline falló en el servidor.");
-        cleanup();
-        return;
-      }
-      if (data?.agente && data?.tipo) {
-        options?.onEvent?.(data as PipelineWsEvent);
-      }
-    } catch {
-      /* ignore malformed frames */
-    }
-  };
-
-  ws.onerror = () => cleanup();
-  ws.onclose = () => {
-    options?.signal?.removeEventListener("abort", onAbort);
-  };
+  connectPipelineWs(ticketId, {
+    signal: options?.signal,
+    onEvent: options?.onEvent,
+    onResult: options?.onResult,
+    // Transport-level failure stays silent here: resumeTicket's parallel
+    // REST poll is the authoritative fallback when the WS can't connect.
+    onServerError: options?.onError,
+  });
 }
 
 async function request<T>(

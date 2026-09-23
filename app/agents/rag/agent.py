@@ -2,11 +2,13 @@
 
 import logging
 
+from chromadb.api.models.Collection import Collection
+
 from app.config import Settings, get_settings
 from app.schemas import SolucionSugerida
 from app.services.embeddings import get_embedding_service
 from app.storage.vector_db.client import get_kedb_collection, get_tickets_collection
-from app.storage.vector_db.search import VectorSearchAdapter
+from app.storage.vector_db.search import search_validated_kedb
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +18,13 @@ class RAGAgent:
         self,
         settings: Settings | None = None,
         top_k: int = 5,
-        vector_search: VectorSearchAdapter | None = None,
+        tickets: Collection | None = None,
+        kedb: Collection | None = None,
     ):
         self.settings = settings or get_settings()
         self.embedder = get_embedding_service()
-        if vector_search is None:
-            tickets_col = get_tickets_collection(self.settings)
-            kedb_col = get_kedb_collection(self.settings)
-            vector_search = VectorSearchAdapter(tickets_col, kedb_col)
-        self.vector_search = vector_search
+        self.tickets = tickets if tickets is not None else get_tickets_collection(self.settings)
+        self.kedb = kedb if kedb is not None else get_kedb_collection(self.settings)
         self.top_k = top_k
 
     def retrieve(self, texto: str, categoria: str | None = None) -> list[SolucionSugerida]:
@@ -33,14 +33,16 @@ class RAGAgent:
 
         # Search tickets
         try:
-            ticket_results = self.vector_search.search_tickets(vector, self.top_k * 2)
+            ticket_results = self.tickets.query(
+                query_embeddings=[vector], n_results=self.top_k * 2
+            )
             soluciones.extend(self._parse_results(ticket_results, "ticket"))
         except Exception:
             logger.exception("Chroma query falló en colección de tickets")
 
         # Search validated KEDB articles
         try:
-            kedb_results = self.vector_search.search_validated_kedb(vector, self.top_k)
+            kedb_results = search_validated_kedb(self.kedb, vector, self.top_k)
             soluciones.extend(self._parse_results(kedb_results, "kedb"))
         except Exception:
             logger.exception("Chroma query falló en colección KEDB")
@@ -77,7 +79,7 @@ class RAGAgent:
     def search_kedb(self, query: str, top_k: int = 10) -> list[SolucionSugerida]:
         vector = self.embedder.embed_text(query, cache_key=f"search:{query[:100]}")
         try:
-            results = self.vector_search.search_kedb(vector, top_k)
+            results = self.kedb.query(query_embeddings=[vector], n_results=top_k)
             parsed = self._parse_results(results, "kedb")
         except Exception:
             logger.exception("Búsqueda KEDB falló")
@@ -86,4 +88,9 @@ class RAGAgent:
 
     def index_articulo(self, articulo_id: str, texto: str, metadata: dict) -> None:
         vector = self.embedder.embed_text(texto, cache_key=articulo_id)
-        self.vector_search.index_kedb(articulo_id, vector, texto, metadata)
+        self.kedb.upsert(
+            ids=[articulo_id],
+            embeddings=[vector],
+            documents=[texto],
+            metadatas=[metadata],
+        )

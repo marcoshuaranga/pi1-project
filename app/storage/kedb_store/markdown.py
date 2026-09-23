@@ -18,6 +18,7 @@ def articulo_to_markdown(articulo: KedbArticulo) -> str:
     aplicable = articulo.aplicable_a or "—"
     return f"""---
 articulo_id: {articulo.articulo_id}
+titulo: {articulo.titulo}
 estado: {articulo.estado.value}
 categoria: {articulo.categoria}
 version: {articulo.version}
@@ -73,7 +74,9 @@ def list_markdown_docs(settings: Settings | None = None) -> list[dict]:
             {
                 "articulo_id": path.stem,
                 "filename": path.name,
-                "titulo": _title_from_md(text) or path.stem,
+                # Frontmatter titulo covers files written since it was added;
+                # the heading fallback keeps older files on disk working.
+                "titulo": meta.get("titulo") or _title_from_md(text) or path.stem,
                 "estado": meta.get("estado", "desconocido"),
                 "categoria": meta.get("categoria", ""),
                 "path": str(path),

@@ -30,7 +30,7 @@ app/                  FastAPI backend (the product)
 web/                  React + Vite + TypeScript frontend (3 screens: Operador, Experto KEDB, Coordinador)
 litellm/config.yaml   LiteLLM proxy config (model aliases for gpt-4o-mini / claude-sonnet-5)
 scripts/              seed_demo.py, reset_demo.py — demo data lifecycle
-data/, .dvc/          DVC-versioned raw ticket export (never commit the raw .xlsx)
+data/, .dvc/, dvc.yaml  DVC pipeline (extract → anonymize → ingest → embed); never commit the raw .xlsx
 docs/adr/             Architecture decision records
 CONTEXT.md            Domain glossary — read this first
 PRD.md, DEMO*.md      Product spec and demo runbook/QA (Spanish)
@@ -53,6 +53,10 @@ uv run ruff check .        # lint
 ```
 
 `uv run pytest` alone doesn't hit live services — tests marked `@pytest.mark.integration` (e.g. the 30s end-to-end DoD check) skip themselves if Chroma isn't reachable; run `docker compose up` first to actually exercise them. The `es_core_news_lg` spaCy model (anonymization NER, ADR-0008) isn't installed by `uv sync` — without it, `Anonymizer.nlp` is silently `None` and name-scrubbing is skipped both at runtime and in tests. Install it once with `uv run python -m spacy download es_core_news_lg` (the Dockerfile does this automatically; a bare local `uv` env doesn't).
+
+CI (`.github/workflows/ci.yml`) runs lint + tests + both Docker builds on every push/PR to `main`/`master`, not just on manual dispatch. If you change a Dockerfile or a dependency, verify the image actually builds locally (`docker build -t pi1-api .` / `docker build -t pi1-web ./web --build-arg VITE_API_URL=http://localhost:8000`) before pushing — don't rely on reading the Dockerfile alone.
+
+The data pipeline (`docker compose --profile pipeline run --rm pipeline <stage>`) is described as a DVC pipeline in `dvc.yaml` (`extract → anonymize → ingest → embed`). The `dvc` CLI itself isn't a project dependency here — `dvc.yaml` documents the stage graph and lets you run `dvc repro` if you have DVC installed, but the stages also run standalone via the CLI commands above.
 
 ## Frontend (`web/`, npm)
 

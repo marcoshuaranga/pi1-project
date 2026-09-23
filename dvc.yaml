@@ -1,0 +1,43 @@
+stages:
+  # data/raw/Tickets_Consolidados.xlsx is a dependency here but is never `dvc
+  # add`-ed or committed — it's raw PII (.dvc/config: "track processed data,
+  # not raw PII"; also gitignored, see README). It must exist locally for
+  # `extract`/`full` to run; only its downstream outputs are versioned.
+  extract:
+    cmd: docker compose --profile pipeline run --rm pipeline extract
+    deps:
+      - data/raw/Tickets_Consolidados.xlsx
+      - app/pipeline/ingest/normalize.py
+    outs:
+      - data/processed/sample_raw.parquet
+
+  anonymize:
+    cmd: docker compose --profile pipeline run --rm pipeline anonymize
+    deps:
+      - data/processed/sample_raw.parquet
+      - app/pipeline/anonymize/anonymizer.py
+    outs:
+      - data/processed/sample_anonymized.parquet
+
+  ingest:
+    cmd: docker compose --profile pipeline run --rm pipeline ingest
+    deps:
+      - data/processed/sample_anonymized.parquet
+      - app/pipeline/ingest/normalize.py
+      - app/pipeline/ingest/pipeline.py
+    outs:
+      - data/processed/tickets_all.json
+      - data/processed/tickets_train.json
+      - data/processed/tickets_eval.json
+      - data/processed/tickets_holdout.json
+
+  embed:
+    cmd: docker compose --profile pipeline run --rm pipeline embed
+    deps:
+      - data/processed/tickets_all.json
+    outs:
+      # The real output is the `tickets` collection in ChromaDB (a running
+      # service, not a file DVC can hash) — this manifest is the file-based
+      # checkpoint DVC tracks as a stand-in for it. Requires chromadb to
+      # already be up (`docker compose up -d chromadb`).
+      - data/processed/embeddings_manifest.json
