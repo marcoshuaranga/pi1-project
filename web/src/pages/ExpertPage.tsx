@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { api, KedbArticulo, pollJob } from "../api";
+import { useEffect, useState } from "react";
+import { api, KedbArticulo } from "../api";
+import { useJobRun } from "../useJobRun";
 
 type EditDraft = {
   titulo: string;
@@ -29,9 +30,7 @@ export default function ExpertPage() {
   const [draft, setDraft] = useState<EditDraft | null>(null);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
-  const [jobStatus, setJobStatus] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const pollAbort = useRef<AbortController | null>(null);
+  const jobRun = useJobRun();
 
   const load = async (opts?: { preferId?: string | null }) => {
     setLoading(true);
@@ -59,7 +58,7 @@ export default function ExpertPage() {
 
   useEffect(() => {
     load();
-    return () => pollAbort.current?.abort();
+    return () => jobRun.cancel();
   }, []);
 
   const selectArticulo = (a: KedbArticulo) => {
@@ -136,17 +135,9 @@ export default function ExpertPage() {
   const handleGenerate = async () => {
     setError("");
     setMsg("");
-    setGenerating(true);
-    setJobStatus("Encolando generación KEDB…");
-    pollAbort.current?.abort();
-    pollAbort.current = new AbortController();
     try {
-      const enqueued = await api.enqueueKedbGenerate(10);
-      setJobStatus(`Job ${enqueued.job_id} en cola — consultando cada 5s…`);
-      const done = await pollJob(enqueued.job_id, {
-        signal: pollAbort.current.signal,
-        onStatus: (job) => setJobStatus(`Job ${job.job_id}: ${job.status}`),
-      });
+      const done = await jobRun.run(() => api.enqueueKedbGenerate(10), "Encolando generación KEDB…");
+      if (!done) return; // cancelled by a newer run or unmount
       if (done.success === false) {
         throw new Error(done.error || "La generación falló en el worker");
       }
@@ -159,14 +150,9 @@ export default function ExpertPage() {
           ? `Generación lista: ${generated} artículo(s).`
           : "Generación KEDB completada."
       );
-      setJobStatus("");
       await load();
     } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
       setError(String(e));
-      setJobStatus("");
-    } finally {
-      setGenerating(false);
     }
   };
 
@@ -207,7 +193,7 @@ export default function ExpertPage() {
   };
 
   const emptyPendientes = !loading && pendientes.length === 0 && !error;
-  const busy = deciding || saving || generating;
+  const busy = deciding || saving || jobRun.busy;
 
   return (
     <div className="max-w-5xl mx-auto p-4">
@@ -221,7 +207,7 @@ export default function ExpertPage() {
             onClick={handleGenerate}
             disabled={busy}
           >
-            {generating ? (
+            {jobRun.busy ? (
               <>
                 <span className="loading loading-spinner loading-xs" />
                 Generando…
@@ -233,9 +219,9 @@ export default function ExpertPage() {
         </div>
       </div>
 
-      {jobStatus && (
+      {jobRun.status && (
         <div className="alert alert-info mb-4 text-sm">
-          <span>{jobStatus}</span>
+          <span>{jobRun.status}</span>
         </div>
       )}
 

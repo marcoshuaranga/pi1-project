@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { api, pollJob } from "../api";
+import { useEffect, useState } from "react";
+import { api } from "../api";
+import { useJobRun } from "../useJobRun";
 
 export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<Record<string, unknown> | null>(null);
@@ -7,10 +8,8 @@ export default function DashboardPage() {
   const [searchQ, setSearchQ] = useState("");
   const [searchResults, setSearchResults] = useState<unknown[]>([]);
   const [articulos, setArticulos] = useState<unknown[]>([]);
-  const [jobStatus, setJobStatus] = useState("");
-  const [recomputing, setRecomputing] = useState(false);
   const [error, setError] = useState("");
-  const pollAbort = useRef<AbortController | null>(null);
+  const jobRun = useJobRun();
 
   const refresh = async () => {
     const [dash, evalMetrics, arts] = await Promise.all([
@@ -25,33 +24,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     refresh();
-    return () => pollAbort.current?.abort();
+    return () => jobRun.cancel();
   }, []);
 
   const handleRecompute = async () => {
     setError("");
-    setRecomputing(true);
-    setJobStatus("Encolando evaluación…");
-    pollAbort.current?.abort();
-    pollAbort.current = new AbortController();
     try {
-      const enqueued = await api.enqueueEvaluacion();
-      setJobStatus(`Job ${enqueued.job_id} en cola — consultando cada 5s…`);
-      const done = await pollJob(enqueued.job_id, {
-        signal: pollAbort.current.signal,
-        onStatus: (job) => setJobStatus(`Job ${job.job_id}: ${job.status}`),
-      });
+      const done = await jobRun.run(() => api.enqueueEvaluacion(), "Encolando evaluación…");
+      if (!done) return; // cancelled by a newer run or unmount
       if (done.success === false) {
         throw new Error(done.error || "La evaluación falló en el worker");
       }
-      setJobStatus("");
       await refresh();
     } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
       setError(String(e));
-      setJobStatus("");
-    } finally {
-      setRecomputing(false);
     }
   };
 
@@ -68,9 +54,9 @@ export default function DashboardPage() {
         <span className="text-lg font-bold">Tablero del Coordinador (HU15)</span>
       </div>
 
-      {jobStatus && (
+      {jobRun.status && (
         <div className="alert alert-info mb-4 text-sm">
-          <span>{jobStatus}</span>
+          <span>{jobRun.status}</span>
         </div>
       )}
       {error && (
@@ -107,9 +93,9 @@ export default function DashboardPage() {
             <button
               className="btn btn-sm btn-outline"
               onClick={handleRecompute}
-              disabled={recomputing}
+              disabled={jobRun.busy}
             >
-              {recomputing ? (
+              {jobRun.busy ? (
                 <>
                   <span className="loading loading-spinner loading-xs" />
                   Recalculando…
