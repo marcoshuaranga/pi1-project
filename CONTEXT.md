@@ -12,6 +12,9 @@ Plataforma de asistencia inteligente para la Mesa de Ayuda de OITSI-MTC: clasifi
 Una incidencia o solicitud de la Mesa de Ayuda, importada del histórico GLPI. Tiene un estado (`abierto`, `en_proceso`, `cerrado`), una categoría y, si está cerrado, una solución.
 _Avoid_: Caso, Incidencia, Solicitud
 
+**Sesión de ticket** (`TicketSessionStatus`: `procesando` / `completado` / `error`):
+No confundir con el estado GLPI del Ticket de arriba. Es el estado de la ejecución del pipeline (Orquestador) sobre un ticket nuevo que el Operador acaba de enviar — permite que la interfaz consulte `GET /tickets/{id}` y distinga "todavía procesando" de "ya terminó" o "falló", incluso si se reconecta a medio camino (p. ej. tras perder el WebSocket).
+
 **Artículo KEDB** (`KedbArticulo`):
 Un artículo de la base de errores conocidos, generado a partir de uno o más tickets resueltos similares. Tiene síntoma, causa, solución y una lista de `tickets_fuente`. Pasa por un ciclo de vida: `borrador` → `validado` → `obsoleto` / `archivado`.
 _Avoid_: Nota de solución, KB article
