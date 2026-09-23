@@ -20,15 +20,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --extra dev --no-install-project --no-cache
 
+# Pre-install spaCy Spanish model (ADR-08). Depends only on pyproject.toml/
+# uv.lock (spacy itself, installed above), not on application code — keep
+# it before COPY app/tests/scripts so a code-only change doesn't force a
+# re-download of this 541MB layer.
+RUN uv run python -m spacy download es_core_news_lg
+
 COPY app ./app
 COPY scripts ./scripts
 COPY tests ./tests
 COPY data/fixtures ./data/fixtures
 
 RUN uv sync --locked --extra dev --no-cache
-
-# Pre-install spaCy Spanish model (ADR-08)
-RUN uv run python -m spacy download es_core_news_lg
 
 RUN mkdir -p /data/processed /data/raw /data/kedb
 
