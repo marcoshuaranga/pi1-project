@@ -50,3 +50,26 @@ def test_create_ticket_rejects_text_shorter_than_minimum(api_client):
     response = api_client.post("/tickets", json={"texto": "abc"})
 
     assert response.status_code == 422
+
+
+class NoHitOrchestrator:
+    def process_ticket(self, texto: str) -> TicketResponse:
+        return TicketResponse(
+            ticket_id="TICKET-NOHIT-001",
+            categoria="Otros",
+            confianza=0.31,
+            prioridad="Baja",
+            soluciones=[],
+        )
+
+
+def test_create_ticket_returns_explicit_empty_result_when_nothing_matches(api_client, monkeypatch):
+    """US1.4: a no-hit ticket is a 200 with an empty suggestion list, not an error."""
+    monkeypatch.setattr("pi_api.routers.tickets.get_orchestrator", NoHitOrchestrator)
+
+    response = api_client.post("/tickets", json={"texto": "Consulta sin antecedentes"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["soluciones"] == []
+    assert body["confianza"] < 0.5

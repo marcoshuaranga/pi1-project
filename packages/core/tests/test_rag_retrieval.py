@@ -142,3 +142,32 @@ def test_search_validated_kedb_filters_drafts_on_fallback():
 
     assert result["ids"] == [["validated"]]
     assert result["metadatas"] == [[{"estado": "validado"}]]
+
+
+def _empty_results() -> dict:
+    return {"ids": [[]], "distances": [[]], "metadatas": [[]]}
+
+
+class EmptyCollection(FakeCollection):
+    def query(self, **kwargs):
+        self.calls.append(kwargs)
+        return _empty_results()
+
+
+def test_retrieve_returns_empty_list_when_nothing_matches():
+    agent = _agent(EmptyCollection(), EmptyCollection(), top_k=5)
+
+    assert agent.retrieve("consulta sin antecedentes") == []
+
+
+def test_retrieve_hides_total_vector_store_failure_as_empty_result():
+    """Known limitation (spec: Known Limitations): when both collections fail, the
+    agent logs and returns [], which callers cannot tell apart from a no-hit.
+    Update this test when failures are surfaced to the caller."""
+    agent = _agent(
+        FakeCollection(raises=RuntimeError("chroma down")),
+        FakeCollection(raises=RuntimeError("chroma down")),
+        top_k=5,
+    )
+
+    assert agent.retrieve("printer") == []
