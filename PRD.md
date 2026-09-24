@@ -39,7 +39,7 @@ Corresponde al ciclo cerrado completo, ya validado en la incepción ágil y cons
 | Datos        | C1 Anonimización, C2 Ingesta/Normalización                    | HU13 (tarea técnica)                    |
 | Asistencia   | C3 Clasificador, C4 Priorizador, C5 Agente RAG                | HU01, HU02 ✅, HU04, HU06, HU07 ✅      |
 | Conocimiento | C6 Generador KEDB (agrupación + síntesis)                     | HU08a, HU08b, HU09 ✅, HU10, HU14       |
-| Orquestación | C7 Orquestador (LangGraph, conditional routing)               | tarea técnica (sustenta HU01/04/06/14)  |
+| Orquestación | C7 Orquestador (LangGraph, grafo secuencial hoy; conditional routing pendiente, ADR-0006) | tarea técnica (sustenta HU01/04/06/14)  |
 | Interfaz     | C8 Interfaz del Operador (mínima)                             | soporte de HU01, HU04, HU06, HU10, HU14 |
 | Evaluación   | C9 Framework de evaluación (métricas de respaldo, no en vivo) | soporte de F1/Recall@5                  |
 
@@ -160,6 +160,10 @@ El MVP se considera funcional cuando se cumple el ciclo completo:
 5. reutilización del artículo validado en un ticket futuro
 
 ### Métricas de referencia
+
+Estos valores son **objetivos** (`objetivo`), no resultados medidos. Hoy la API
+reporta Recall@5 como `proxy` (coincidencia del ticket fuente) y ninguna métrica
+como `medido`; ver `specs/001-mvp-closed-assistance-kedb-loop/contracts/metrics.md`.
 
 - F1 macro de clasificación: ≥ 0.80
 - Recall@5: ≥ 0.85
