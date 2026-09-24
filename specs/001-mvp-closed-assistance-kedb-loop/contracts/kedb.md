@@ -72,4 +72,7 @@ generation.
 
 `GET /jobs/{job_id}` and `GET /jobs/{job_id}/result` expose asynchronous generation
 and evaluation status and results. A queued job is not equivalent to a generated
-article.
+article. `GET /jobs/{job_id}` returns `status` (the ARQ status), `success`, `result`,
+and `error`; a job that raised has `status = complete` with `success = false`.
+`GET /jobs/{job_id}/result` returns `404` for an unknown job, `409` while it has not
+completed, and `500` with the error for a failed job.

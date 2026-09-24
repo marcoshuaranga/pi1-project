@@ -7,8 +7,8 @@ Represents an anonymized help-desk request and its assistance result.
 - Identity: stable `ticket_id`.
 - Input: anonymized ticket text.
 - Result: category, confidence, priority, and ordered solution suggestions.
-- Lifecycle: submitted, processing, completed, or failed as represented by the
-  ticket status workflow.
+- Lifecycle (`TicketSessionStatus`): `procesando`, `completado`, or `error`. A
+  ticket that was never recorded is not a state; it returns `404`.
 - Resolution: optional applied solution recorded for future KEDB work.
 - Feedback: optional usefulness and new-solution information.
 
@@ -24,7 +24,7 @@ Represents observable progress or failure for a ticket processing stage.
 
 - Identity: event identifier and timestamp.
 - Association: `ticket_id` and pipeline stage/agent.
-- Outcome: start, completion, or error.
+- Outcome (`EventoTipo`): `inicio`, `fin`, or `error`.
 - Context: stage input/output metadata suitable for UI progress and diagnosis.
 
 Events are delivery records, not authority to mutate a ticket or publish KEDB.
@@ -59,10 +59,15 @@ Represents an asynchronous KEDB generation or evaluation operation.
 
 - Identity: `job_id`.
 - Task: generation, evaluation, or golden-set evaluation.
-- Status: queued, running, completed, or failed.
-- Result: task-specific output or error details.
+- Status: the ARQ status reported by `GET /jobs/{job_id}` (`queued`, `in_progress`,
+  `complete`, `deferred`, `not_found`), plus `success` (`true`/`false`, set once the
+  job has run).
+- Result: task-specific output when `success` is true, or `error` when it is false.
 
-A queued job response is not evidence that the task completed successfully.
+A queued job response is not evidence that the task completed successfully. There is
+no `failed` status: a job that raised is `complete` with `success = false` and an
+`error`, and `GET /jobs/{job_id}/result` answers `500` for it. Callers must check
+`success`, not only `status`.
 
 ## Evaluation Result
 

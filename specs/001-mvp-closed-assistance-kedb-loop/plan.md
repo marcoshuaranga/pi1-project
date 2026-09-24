@@ -56,18 +56,22 @@ dashboard displays them. Current evaluators emit `proxy` only.
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-- PASS: The feature preserves human approval as the publication boundary for
-  reusable KEDB knowledge.
-- PASS: The feature treats anonymization as a prerequisite and does not add raw
-  data or generated PII artifacts.
+- PARTIAL: The feature preserves human approval as the publication boundary for
+  reusable KEDB knowledge, but principle I also requires every lifecycle
+  transition to be auditable and the store keeps no transition history. Tracked
+  in Complexity Tracking and Risks; not silently accepted.
+- PASS (structured PII only): The feature treats anonymization as a prerequisite
+  and does not add raw data or generated PII artifacts. The ingestion gate does
+  not re-check personal names (see the spec's Known Limitations).
 - PASS: The design keeps shared behavior in `packages/core` and application
   delivery in `apps/*`/`web/`.
 - PASS: The specification labels target metrics, proxy metrics, demo fixtures,
   and aspirational conditional routing separately from measured behavior.
 - PASS: The plan identifies contract/integration validation for shared schemas,
   REST, WebSocket events, jobs, lifecycle transitions, and privacy gates.
-- PASS: No constitution violation requires complexity justification for this
-  baseline documentation and validation feature.
+- DEVIATION: One constitution gap (missing lifecycle audit trail) exists in the
+  code this baseline documents. It is justified below because closing it is new
+  product work, not baseline validation.
 
 ## Project Structure
 
@@ -126,6 +130,22 @@ them. The baseline plan does not move code across these boundaries.
 
 > **Fill ONLY if Constitution Check has violations that must be justified**
 
-| Violation | Why Needed                                                                                                | Simpler Alternative Rejected Because                                                   |
-| --------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| None      | The baseline maps and validates an existing architecture rather than adding a new project or abstraction. | Existing package boundaries and direct local stores already satisfy the current scope. |
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+| --------- | ---------- | ------------------------------------ |
+| Principle I: lifecycle transitions are not auditable (no history in `kedb_articulos`) | The baseline documents current behavior. Adding an audit table changes the schema, the API, and probably the ADR set, which is a separate feature. | Silently marking principle I as PASS would misreport the code; changing the store inside a documentation baseline would hide a schema change. Resolve through a dedicated KEDB lifecycle audit trail spec before implementation of follow-ups that depend on it. |
+
+## Risks
+
+| ID | Risk | Effect | Mitigation or owner |
+| -- | ---- | ------ | ------------------- |
+| R1 | No lifecycle audit trail | Cannot show who validated, edited, or archived an article; principle I is unmet | Follow-up audit trail spec; tracked deviation above |
+| R2 | Vector-store failures are logged and swallowed by `RAGAgent` | Outages look like no-hit results; evaluation counts them as misses, deflating the Recall@5 proxy | Follow-up retrieval failure signalling spec; pinned by a characterization test |
+| R3 | Publication is not atomic and nothing re-projects a validated article | Live Docs and vector index can disagree (observed live) | Report divergence; a re-projection path belongs to a follow-up spec |
+| R4 | Failed ARQ jobs report `status = complete` | Clients that read only `status` treat a failed evaluation as finished | Document `success`/`error`; contract now states it |
+| R5 | Recall@5 is a proxy and the general evaluation cache can be stale or unrefreshable | Coordinator could read an old number as current | `tipo_evidencia`, `fuente`, `metodo`, `dataset` shown with every value |
+| R6 | Privacy gate re-checks structured PII only | A missed personal name passes the gate | Independent residual-PII audit in the privacy hardening spec |
+| R7 | No frontend test runner | UI regressions are caught only by `tsc && vite build` and the route smoke check | Accepted by project decision |
+| R8 | Cold first ticket request can reach the 30 s target | SC-001 met warm, not guaranteed cold | Measure and document under a named service configuration |
+
+Validation commands for this baseline are `uv run pytest`, `uv run ruff check .`,
+and `npm run build` from `web/`; the quickstart lists the service-backed checks.

@@ -49,7 +49,7 @@ description: "Task list for validating the reverse-engineered closed assistance-
 - [x] T009 [US1] Add contract tests for `POST /tickets` and `GET /tickets/{ticket_id}` in `apps/api/tests/test_ticket_assistance_contract.py`
 - [x] T010 [P] [US1] Add pipeline event contract tests for `WS /ws/pipeline/{ticket_id}` in `apps/api/tests/test_pipeline_websocket_contract.py`
 - [x] T011 [P] [US1] Add core acceptance tests for classifier, prioritizer, and RAG result shape in `packages/core/tests/test_assistance_contract.py`
-- [x] T012 [US1] Verify no-hit, invalid-input, missing-ticket, and failed-pipeline behavior in `apps/api/tests/test_ticket_assistance_contract.py` and `apps/api/tests/test_pipeline_websocket_contract.py`
+- [x] T012 [US1] Verify no-hit (`test_create_ticket_returns_explicit_empty_result_when_nothing_matches`, `test_retrieve_returns_empty_list_when_nothing_matches`), invalid-input (422), and missing-ticket (404) behavior in `apps/api/tests/test_ticket_assistance_contract.py` and `packages/core/tests/test_rag_retrieval.py`, and the failed-pipeline behavior of the WebSocket route in `apps/api/tests/test_pipeline_websocket_contract.py`. The synchronous `POST /tickets` failure path has no test (see Known Limitations)
 - [x] T013 [US1] DESCOPED: `web/` has no test runner by project decision; guarded by `npm run build` and the quickstart route smoke check. (was: operator UI acceptance test in `web/src/pages/OperatorPage.test.tsx`)
 - [x] T014 [US1] Update `specs/001-mvp-closed-assistance-kedb-loop/contracts/tickets.md` with observed response fields and error semantics after tests are run
 
@@ -115,7 +115,7 @@ description: "Task list for validating the reverse-engineered closed assistance-
 
 ## Phase 8: Polish and Cross-Cutting Concerns
 
-- [x] T037 [P] Run `/speckit-analyze` and resolve critical or high findings in `specs/001-mvp-closed-assistance-kedb-loop/spec.md`, `plan.md`, or `tasks.md` (first run predates T045-T050; re-run before implement)
+- [x] T037 [P] Run `/speckit-analyze` and resolve critical or high findings in `specs/001-mvp-closed-assistance-kedb-loop/spec.md`, `plan.md`, or `tasks.md` (re-run 2026-09-24: 1 critical, 2 high, 9 medium/low; see T052 and the plan's Complexity Tracking. The critical finding is a tracked constitution deviation, so `/speckit-implement` stays gated on the audit-trail decision)
 - [x] T038 [P] Reconcile implemented capabilities and stale phase labels in `PRD.md` without moving architecture decisions out of ADRs
 - [x] T039 [P] Add cross-links from `docs/README.md`, `README.md`, and `specs/001-mvp-closed-assistance-kedb-loop/quickstart.md`
 - [x] T040 Run `uv run pytest` and `uv run ruff check .` from the repository root and record results in the feature review (see Validation Record)
@@ -129,6 +129,8 @@ description: "Task list for validating the reverse-engineered closed assistance-
 - [x] T048 [US4] Show `tipo_evidencia`, dataset, and method next to the evaluation metrics in `web/src/pages/DashboardPage.tsx`
 - [x] T049 Scope the `E402` ruff exemption to `scripts/*` in `pyproject.toml` so `uv run ruff check .` passes; the scripts bootstrap `sys.path` before importing `pi_core` on purpose
 - [x] T050 [US1] Record the WhatsApp intake as a simulated entry point to the operator flow in `specs/001-mvp-closed-assistance-kedb-loop/spec.md`
+- [x] T051 [US1] Pin the hidden-vector-store-failure behavior with `test_retrieve_hides_total_vector_store_failure_as_empty_result` in `packages/core/tests/test_rag_retrieval.py` so the limitation is executable
+- [x] T052 Resolve the second `/speckit-analyze` run: record the missing lifecycle audit trail, hidden retrieval failures, failed-jobs-report-complete, and last-write-wins in `spec.md`; add the Constitution Check deviation, Complexity Tracking row, and Risks table to `plan.md`; align `data-model.md`, `contracts/kedb.md`, and `quickstart.md` with the real ticket, event, and job statuses
 
 ## Dependencies and Execution Order
 
@@ -174,9 +176,9 @@ knowledge reuse. User Story 4 is operational support and can follow the core loo
 
 ## Validation Record
 
-Recorded 2026-09-23 against the working tree:
+Recorded 2026-09-23 against the working tree (backend re-run 2026-09-24 after T051-T052):
 
-- `uv run pytest`: 119 passed, 2 skipped (integration tests that need live services).
+- `uv run pytest`: 122 passed, 2 skipped (integration tests that need live services).
 - `uv run ruff check .`: all checks passed.
 - `npm run build` (from `web/`): passed.
 ### T042 Docker smoke (2026-09-24)

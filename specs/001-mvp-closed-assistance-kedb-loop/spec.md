@@ -328,7 +328,24 @@ address them; none is promoted to a requirement of this baseline.
   synthesis work.
 - **Non-atomic publication**: a failure in one publication projection leaves the
   stored lifecycle state changed while the projection is stale; there is no
-  rollback or retry.
+  rollback, retry, or re-projection of an already validated article. This was
+  observed live: a validated article had a Live Docs file but no vector entry.
+- **No lifecycle audit trail**: constitution principle I requires every lifecycle
+  transition to be auditable, but the store keeps only the current `estado` and a
+  `version` counter. Who changed an article, when, and from which state is not
+  recorded (follow-up: a KEDB lifecycle audit trail spec).
+- **Retrieval failures are hidden**: when the vector store fails, `retrieve` and
+  `search_kedb` log the error and return whatever survived, possibly `[]`, with no
+  signal to the caller. A total failure is indistinguishable from a no-hit result,
+  and evaluation runs count it as a miss (pinned by
+  `test_retrieve_hides_total_vector_store_failure_as_empty_result`). FR-011 is
+  therefore only met for input, missing-resource, and job failures, not for
+  vector-store outages (follow-up: retrieval failure signalling).
+- **Failed jobs report `complete`**: ARQ marks a job that raised as `complete`;
+  only `success = false` and `error` reveal the failure. A client that polls
+  `status` alone will treat a failed evaluation as finished.
+- **Last write wins**: concurrent edits of one article are not detected; the store
+  applies each update without a version check.
 - **Synchronous ticket route**: `POST /tickets` does not record a failed ticket
   session on an unexpected pipeline error; only the WebSocket route does.
 - **No frontend tests**: `web/` intentionally has no test runner. Frontend
@@ -338,7 +355,9 @@ address them; none is promoted to a requirement of this baseline.
 ## Constitution Alignment
 
 - **Human-Controlled Knowledge**: expert approval is required before an article
-  becomes reusable; rejection transitions the article to `obsoleto`.
+  becomes reusable; rejection transitions the article to `obsoleto`. The
+  requirement that transitions be auditable is **not met** today (see Known
+  Limitations) and is carried as a tracked deviation in the plan.
 - **Privacy Before Processing**: historical data is anonymized before indexing,
   embedding, evaluation, or display, and failed validation blocks downstream use.
 - **Canonical Domain Language**: domain state values remain `borrador`,

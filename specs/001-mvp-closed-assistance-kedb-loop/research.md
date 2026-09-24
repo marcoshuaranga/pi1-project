@@ -56,5 +56,9 @@
 
 - Define the authoritative Recall@5 ground-truth semantics and golden-set annotation procedure.
 - Replace the regex-only privacy gate with an independent residual-PII audit that also covers names; the current gate only re-checks the anonymizer's own patterns.
-- Decide the acceptance behavior for concurrent article edits and version conflicts.
+- Decide the acceptance behavior for concurrent article edits and version conflicts (today: last write wins).
+- Design a KEDB lifecycle audit trail so every transition records actor, time, and previous state (constitution I; plan risk R1).
+- Decide how vector-store failures reach callers instead of being logged and returned as empty results (plan risk R2).
+- Decide whether a validated article whose Markdown and vector projections disagree can be re-projected (plan risk R3).
+- Diagnose the tickets-collection HNSW error ("ef or M is too small") seen on `classifier/agent.py` queries during the T042 smoke run; it makes `POST /metrics/evaluacion` fail.
 - Measure the 30-second assistance target under a documented service configuration.

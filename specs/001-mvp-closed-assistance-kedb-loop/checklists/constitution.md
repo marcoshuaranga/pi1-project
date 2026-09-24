@@ -19,3 +19,4 @@
 - [x] CHK008 `uv run ruff check .` passes.
 - [x] CHK009 `npm run build` passes from `web/` when frontend files are changed.
 - [x] CHK010 No raw PII or unreviewed generated data artifacts are added. Evidence: `test_privacy_artifacts.py`; `data/raw`, `data/processed`, and `data/kedb/articles` are ignored.
+- [ ] CHK011 Every KEDB lifecycle transition is auditable (constitution I). **NOT MET**: the store records only the current `estado`; tracked as a deviation in `plan.md` Complexity Tracking (risk R1).

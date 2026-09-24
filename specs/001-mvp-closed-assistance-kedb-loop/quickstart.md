@@ -57,8 +57,10 @@ npm run dev
 
 1. Enqueue KEDB generation with `POST /kedb/generate` or evaluation with
    `POST /metrics/evaluacion`.
-2. Poll `GET /jobs/{job_id}` until the job is completed or failed.
-3. Read `GET /jobs/{job_id}/result` and record the task, dataset, and outcome.
+2. Poll `GET /jobs/{job_id}` until `status` is `complete`, then check `success`: a
+   job that raised is `complete` with `success = false` and an `error`.
+3. Read `GET /jobs/{job_id}/result` (`500` when the job failed) and record the task,
+   dataset, and outcome.
 4. Treat a queued response as scheduling evidence only, not completion evidence.
 
 ## Validate metrics honestly
