@@ -35,7 +35,8 @@ members = ["packages/*", "apps/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+# Each member owns its tests; `uv run pytest` at the root runs all of them.
+testpaths = ["packages/core/tests", "apps/api/tests", "apps/worker/tests", "apps/pipeline/tests"]
 markers = [
     "integration: requires live services (Chroma, embedding provider) — see docker compose up",
 ]

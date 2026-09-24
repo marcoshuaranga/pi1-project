@@ -53,9 +53,19 @@ Services: `api` (FastAPI), `worker` (arq), `web` (Vite dev server), `chromadb`, 
 
 ```bash
 uv sync                    # installs all 4 workspace members + the root `dev` group
-uv run pytest              # tests (pytest-asyncio, testpaths = tests/; centralized at the repo root)
+uv run pytest              # every member's tests (pytest-asyncio); each member owns its own tests/
 uv run ruff check .        # lint
 ```
+
+Tests live inside the member they cover: `packages/core/tests/`, `apps/api/tests/`, `apps/worker/tests/`, `apps/pipeline/tests/`. The shared `/data` isolation fixture is the repo-root `conftest.py`. To test one member the way CI does — in an environment that contains only that member and its dependencies, so a stray import of another app fails — run:
+
+```bash
+uv sync --locked --package pi-core        # or pi-api / pi-worker / pi-pipeline (exact sync: removes the other members)
+uv run --no-sync pytest packages/core/tests
+uv sync                                   # restore the full workspace afterwards
+```
+
+Put a new test in the member whose code it exercises. A test that genuinely needs two apps at once has no home yet — don't force it into one member; raise it first.
 
 The root `pyproject.toml` is a non-packaged meta-project: it only lists the workspace members and the shared `dev` tooling. Each service declares its own runtime dependencies in `packages/core/pyproject.toml` or `apps/*/pyproject.toml` — add a dependency to the member that actually imports it, and never let `pi_core` import from `pi_api`/`pi_worker`/`pi_pipeline` (apps depend on core, never the reverse, and never on each other).
 

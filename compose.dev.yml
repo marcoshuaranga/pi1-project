@@ -70,7 +70,6 @@ services:
       - ./packages:/app/packages
       - ./apps:/app/apps
       - ./scripts:/app/scripts
-      - ./tests:/app/tests
       - ./data/processed:/data/processed
       - ./data/raw:/data/raw
       - ./data/fixtures:/data/fixtures

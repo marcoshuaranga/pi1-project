@@ -23,7 +23,7 @@ COPY packages/core/pyproject.toml ./packages/core/pyproject.toml
 COPY apps/api/pyproject.toml ./apps/api/pyproject.toml
 COPY apps/worker/pyproject.toml ./apps/worker/pyproject.toml
 COPY apps/pipeline/pyproject.toml ./apps/pipeline/pyproject.toml
-RUN uv sync --locked --package pi-pipeline --no-install-workspace --no-cache
+RUN uv sync --locked --no-dev --package pi-pipeline --no-install-workspace --no-cache
 
 # Batch ingest anonymizes with spaCy NER (ADR-08); same layer ordering as api.
 RUN uv run --no-sync python -m spacy download es_core_news_lg
@@ -33,7 +33,7 @@ COPY apps/pipeline ./apps/pipeline
 COPY scripts ./scripts
 COPY data/fixtures ./data/fixtures
 # --inexact: an exact sync would uninstall the spaCy model above (it isn't in uv.lock).
-RUN uv sync --locked --inexact --package pi-pipeline --no-cache
+RUN uv sync --locked --inexact --no-dev --package pi-pipeline --no-cache
 
 RUN mkdir -p /data/processed /data/raw /data/kedb
 

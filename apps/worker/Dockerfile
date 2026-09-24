@@ -22,12 +22,12 @@ COPY packages/core/pyproject.toml ./packages/core/pyproject.toml
 COPY apps/api/pyproject.toml ./apps/api/pyproject.toml
 COPY apps/worker/pyproject.toml ./apps/worker/pyproject.toml
 COPY apps/pipeline/pyproject.toml ./apps/pipeline/pyproject.toml
-RUN uv sync --locked --package pi-worker --no-install-workspace --no-cache
+RUN uv sync --locked --no-dev --package pi-worker --no-install-workspace --no-cache
 
 # No spaCy model download: the worker never runs the Anonymizer.
 COPY packages/core ./packages/core
 COPY apps/worker ./apps/worker
-RUN uv sync --locked --package pi-worker --no-cache
+RUN uv sync --locked --no-dev --package pi-worker --no-cache
 
 RUN mkdir -p /data/processed /data/raw /data/kedb
 

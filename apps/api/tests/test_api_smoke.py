@@ -1,13 +1,9 @@
-"""Smoke and unit tests."""
-
-from datetime import datetime
+"""API smoke tests."""
 
 import pytest
 from fastapi.testclient import TestClient
 
 from pi_api.main import create_app
-from pi_core.anonymize.anonymizer import Anonymizer
-from pi_pipeline.ingest.normalize import assign_split, clean_html, normalize_category
 
 
 @pytest.fixture
@@ -19,41 +15,6 @@ def test_health(client):
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
-
-
-def test_anonymizer_email():
-    anon = Anonymizer()
-    result = anon.anonymize("Contactar a juan.perez@mtc.gob.pe por el ticket")
-    assert "[CORREO]" in result.text
-    assert "juan.perez" not in result.text
-
-
-def test_anonymizer_dni():
-    anon = Anonymizer()
-    result = anon.anonymize("DNI del solicitante: 12345678")
-    assert "[DNI]" in result.text
-
-
-def test_normalize_category_impresora():
-    cat = normalize_category("Equipos Informáticos > Impresora Multifuncional")
-    assert cat is not None
-    assert "Impresora" in cat
-
-
-def test_clean_html():
-    assert clean_html("<p>Hola <b>mundo</b></p>") == "Hola mundo"
-
-
-def test_assign_split_train():
-    assert assign_split(datetime(2024, 6, 1)) == "train"
-
-
-def test_assign_split_eval():
-    assert assign_split(datetime(2025, 7, 1)) == "eval"
-
-
-def test_assign_split_holdout():
-    assert assign_split(datetime(2025, 10, 15)) == "holdout"
 
 
 def test_kedb_pendientes_empty(client):

@@ -15,8 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Only the dependency manifests are copied at build time; packages/apps/scripts/
-# tests are bind-mounted by compose.dev.yml so code edits don't need a rebuild.
+# Only the dependency manifests are copied at build time; packages/apps/scripts
+# (each member's tests/ included) are bind-mounted by compose.dev.yml so code
+# edits don't need a rebuild.
 # --no-install-workspace installs every third-party dependency of all members
 # (plus the root `dev` group) without building the members, whose source isn't
 # copied here; `uv run` installs them editable from the mounts at container start.

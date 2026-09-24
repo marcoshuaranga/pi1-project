@@ -23,7 +23,7 @@ COPY packages/core/pyproject.toml ./packages/core/pyproject.toml
 COPY apps/api/pyproject.toml ./apps/api/pyproject.toml
 COPY apps/worker/pyproject.toml ./apps/worker/pyproject.toml
 COPY apps/pipeline/pyproject.toml ./apps/pipeline/pyproject.toml
-RUN uv sync --locked --package pi-api --no-install-workspace --no-cache
+RUN uv sync --locked --no-dev --package pi-api --no-install-workspace --no-cache
 
 # Pre-install spaCy Spanish model (ADR-08). Depends only on the lockfile
 # (spacy itself, installed above), not on application code — keep it before
@@ -35,7 +35,7 @@ COPY apps/api ./apps/api
 COPY scripts ./scripts
 COPY data/fixtures ./data/fixtures
 # --inexact: an exact sync would uninstall the spaCy model above (it isn't in uv.lock).
-RUN uv sync --locked --inexact --package pi-api --no-cache
+RUN uv sync --locked --inexact --no-dev --package pi-api --no-cache
 
 RUN mkdir -p /data/processed /data/raw /data/kedb
 

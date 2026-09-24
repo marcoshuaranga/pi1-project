@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -34,10 +34,41 @@ jobs:
         run: uv sync --locked
 
       - name: Lint
-        run: uv run ruff check packages apps tests
+        run: uv run ruff check packages apps
+
+  # Each member is tested in an environment that contains ONLY that member and
+  # its dependencies, so a test (or the code under test) that imports another
+  # app fails here instead of passing thanks to a fully-populated workspace venv.
+  test:
+    name: test (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: pi-core
+            path: packages/core/tests
+          - package: pi-api
+            path: apps/api/tests
+          - package: pi-worker
+            path: apps/worker/tests
+          - package: pi-pipeline
+            path: apps/pipeline/tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.11.12"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install ${{ matrix.package }} and its dependencies
+        run: uv sync --locked --package ${{ matrix.package }}
 
       - name: Test
-        run: uv run pytest tests/ -v
+        run: uv run --no-sync pytest ${{ matrix.path }} -v
 
   docker-backend:
     runs-on: ubuntu-latest
