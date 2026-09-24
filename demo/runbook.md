@@ -1,7 +1,7 @@
 # Guía de demo — Plataforma RAG + KEDB
 
 Checklist operativa para la sesión con el patrocinador (OITSI-MTC).  
-Guion narrativo y argumentario: ver [`DEMO.md`](../DEMO.md) (complementa `PRD.md` §2.4 y §10.1–10.2).
+Guion narrativo y argumentario: ver [`README.md`](./README.md) (complementa `PRD.md` §2.4 y §10.1–10.2).
 
 ---
 
@@ -174,13 +174,13 @@ curl -s http://localhost:8000/metrics/evaluacion
 
 ## Go / no-go (verificar antes de abrir la sala)
 
-| Check | Comando / acción | Criterio |
-| :--- | :--- | :--- |
-| API | `curl http://localhost:8000/health` | `"status":"ok"` |
-| Pendientes (HU14 bandeja) | `curl http://localhost:8000/kedb/pendientes` | **Exactamente 1** borrador Kyocera (título TaskAlfa 7003i, no “Test edit…”) |
-| Trazabilidad | Abrir artículo en UI Experto | Badge **~142 tickets fuente** (o N del extract real) |
-| Métricas | `curl http://localhost:8000/metrics/evaluacion` | `muestra_tickets` > 0; ver nota F1/Recall abajo |
-| UI | http://localhost:3000 | Operador carga |
+| Check                     | Comando / acción                                | Criterio                                                                    |
+| :------------------------ | :---------------------------------------------- | :-------------------------------------------------------------------------- |
+| API                       | `curl http://localhost:8000/health`             | `"status":"ok"`                                                             |
+| Pendientes (HU14 bandeja) | `curl http://localhost:8000/kedb/pendientes`    | **Exactamente 1** borrador Kyocera (título TaskAlfa 7003i, no “Test edit…”) |
+| Trazabilidad              | Abrir artículo en UI Experto                    | Badge **~142 tickets fuente** (o N del extract real)                        |
+| Métricas                  | `curl http://localhost:8000/metrics/evaluacion` | `muestra_tickets` > 0; ver nota F1/Recall abajo                             |
+| UI                        | http://localhost:3000                           | Operador carga                                                              |
 
 Si Chroma está vacío o la API key falla: Escena 1 puede degradar (sin Top-5 útiles). Preferir reintentar pipeline/embeddings antes de la demo.
 
@@ -189,15 +189,15 @@ Si Chroma está vacío o la API key falla: Escena 1 puede degradar (sin Top-5 ú
 ## Escena 1 — Asistencia en vivo
 
 1. Abrir http://localhost:3000
-2. Pegar: *"Impresora Kyocera 7003 no imprime, necesito que la configuren de nuevo"*
+2. Pegar: _"Impresora Kyocera 7003 no imprime, necesito que la configuren de nuevo"_
 3. Clic en **Enviar ticket**
 4. Mostrar steps del pipeline (eventos WebSocket reales; si falla WS, hay fallback REST)
 5. Mostrar categoría, prioridad Media, Top-5 soluciones
 
 **Tickets de respaldo (otro dominio, si hace falta variedad):**
 
-- *"Sin acceso a escritorio remoto"* (VPN / GlobalProtect; ticket histórico 66487)
-- *"Problemas de conexión remota vía VPN"* (ticket 95813)
+- _"Sin acceso a escritorio remoto"_ (VPN / GlobalProtect; ticket histórico 66487)
+- _"Problemas de conexión remota vía VPN"_ (ticket 95813)
 
 ---
 
@@ -243,11 +243,11 @@ En esta versión: F1 macro y Recall@5 (caché precomputada). Kappa no se calcula
 
 ## Fallbacks rápidos
 
-| Problema | Acción |
-| :--- | :--- |
-| Top-5 genérico / una línea | `pipeline enrich-kyocera` o `POST /kedb/seed-demo` (reindexa resoluciones enriquecidas) |
-| Tras practicar Escena 3 (artículo ya validado) | `docker compose exec api python scripts/reset_demo.py` |
-| Métricas en 0 | Re-correr `python scripts/seed_demo.py` o `POST /metrics/evaluacion` |
-| WS no conecta | La UI usa REST automáticamente; la demo sigue |
-| OpenAI sin cuota | `EMBEDDING_PROVIDER=local` en `.env` y rebuild |
-| Preguntan por Recall@5 bajo | Explicar métrica simplificada (ver sección cifras de respaldo) |
+| Problema                                       | Acción                                                                                  |
+| :--------------------------------------------- | :-------------------------------------------------------------------------------------- |
+| Top-5 genérico / una línea                     | `pipeline enrich-kyocera` o `POST /kedb/seed-demo` (reindexa resoluciones enriquecidas) |
+| Tras practicar Escena 3 (artículo ya validado) | `docker compose exec api python scripts/reset_demo.py`                                  |
+| Métricas en 0                                  | Re-correr `python scripts/seed_demo.py` o `POST /metrics/evaluacion`                    |
+| WS no conecta                                  | La UI usa REST automáticamente; la demo sigue                                           |
+| OpenAI sin cuota                               | `EMBEDDING_PROVIDER=local` en `.env` y rebuild                                          |
+| Preguntan por Recall@5 bajo                    | Explicar métrica simplificada (ver sección cifras de respaldo)                          |

@@ -2,6 +2,15 @@
 
 Guidance for AI coding agents working in this repo.
 
+## Quick operating rules for AI agents
+
+- Read [CONTEXT.md](CONTEXT.md) before changing domain models, ticket flow, KEDB logic, or any Spanish-language business terminology.
+- Keep the repo boundaries clean: backend code lives under `packages/` and `apps/`; frontend code lives under `web/`; never let `pi_core` depend on app layers.
+- Install Python dependencies in the member that actually imports them; do not add ad hoc packages at the repo root unless the workspace manifest truly owns them.
+- Prefer existing project conventions over creating new patterns: use the Spanish naming already established in ticket/KEDB code, and read the relevant ADR before changing architecture.
+- Run the smallest relevant validation for the change: `uv run pytest` for Python changes, `uv run ruff check .` for linting, and `npm run build` for frontend changes when files under `web/` are touched.
+- Do not commit raw data files or generated artifacts from the data pipeline unless the task explicitly requires updating demo/test fixtures.
+
 ## What this is
 
 `pi1-rag-kedb`: a multi-agent RAG + KEDB (Known Error Database) platform for OITSI-MTC's help desk. It classifies and prioritizes incoming tickets, retrieves similar past solutions, and — from resolved tickets — generates KEDB articles with N:1 traceability to their source tickets, validated by a human expert before publication. See [CONTEXT.md](CONTEXT.md) for the full domain glossary and [docs/adr/](docs/adr/) for the architecture decisions behind the stack below.
@@ -84,4 +93,4 @@ npm run build    # tsc && vite build
 
 ## Making architectural changes
 
-If you're changing something covered by an existing ADR in `docs/adr/` (framework choice, vector store, clustering algorithm, priority-scoring approach, anonymization technique), read that ADR first — several note *why* the current approach was picked over an alternative. If you're introducing a new decision that's hard to reverse, would surprise a future reader, and involved a genuine trade-off, add a new ADR (`docs/adr/000N-slug.md`) rather than leaving the reasoning only in a commit message or PR description.
+If you're changing something covered by an existing ADR in `docs/adr/` (framework choice, vector store, clustering algorithm, priority-scoring approach, anonymization technique), read that ADR first — several note _why_ the current approach was picked over an alternative. If you're introducing a new decision that's hard to reverse, would surprise a future reader, and involved a genuine trade-off, add a new ADR (`docs/adr/000N-slug.md`) rather than leaving the reasoning only in a commit message or PR description.

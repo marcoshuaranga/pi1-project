@@ -3,23 +3,23 @@
 Preguntas probables en una defensa universitaria o sesión con jurado técnico.  
 Respuestas alineadas a `PRD.md`, ADRs del diseño y a lo **realmente implementado** en el repo.
 
-**Complementa:** [`DEMO.md`](../DEMO.md) (guion) · [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md) (checklist).
+**Complementa:** [`README.md`](./README.md) (guion) · [`runbook.md`](./runbook.md) (checklist).
 
 ---
 
 ## Cómo usar este documento
 
 1. Memoriza las respuestas de **Negocio** y **Validación** (suelen ser las más estrictas).
-2. En tecnología, di primero el *qué* y el *por qué* (ADR); el detalle de hiperparámetros solo si lo piden.
+2. En tecnología, di primero el _qué_ y el _por qué_ (ADR); el detalle de hiperparámetros solo si lo piden.
 3. Si algo del MVP está simplificado respecto a la tesis, **admítelo** y cita la meta del PRD vs. el estado actual. Queda mejor que inventar.
 
 **Cifras de respaldo actuales** (`data/processed/evaluation_results.json`, pueden variar tras re-evaluación):
 
-| Métrica | Valor de ejemplo | Meta PRD |
-| :--- | ---: | ---: |
-| F1 macro | ~0.95 (muestra 50) | ≥ 0.80 |
-| Recall@5 | ~0.22 | ≥ 0.85 |
-| Kappa | no calculado aún | doble etiquetado ~30 |
+| Métrica  |   Valor de ejemplo |             Meta PRD |
+| :------- | -----------------: | -------------------: |
+| F1 macro | ~0.95 (muestra 50) |               ≥ 0.80 |
+| Recall@5 |              ~0.22 |               ≥ 0.85 |
+| Kappa    |   no calculado aún | doble etiquetado ~30 |
 
 ---
 
@@ -82,19 +82,19 @@ Tres capas / **9 componentes**: Datos (C1–C2) → Agentes (C3–C7) → Interf
 
 Separación de responsabilidades y trazabilidad:
 
-| Componente | Rol | Técnica principal |
-| :--- | :--- | :--- |
-| C3 Clasificador | Categoría + confianza | Embeddings + kNN sobre Chroma (train) |
-| C4 Priorizador | Prioridad + score | Fórmula de negocio ADR-07 (no LLM) |
-| C5 RAG | Top-5 soluciones | Similitud coseno tickets + KEDB validados |
-| C6 Generador KEDB | Borradores | HDBSCAN + síntesis LLM |
-| C7 Orquestador | Coordina el pipeline | LangGraph (grafo de estado) |
+| Componente        | Rol                   | Técnica principal                         |
+| :---------------- | :-------------------- | :---------------------------------------- |
+| C3 Clasificador   | Categoría + confianza | Embeddings + kNN sobre Chroma (train)     |
+| C4 Priorizador    | Prioridad + score     | Fórmula de negocio ADR-07 (no LLM)        |
+| C5 RAG            | Top-5 soluciones      | Similitud coseno tickets + KEDB validados |
+| C6 Generador KEDB | Borradores            | HDBSCAN + síntesis LLM                    |
+| C7 Orquestador    | Coordina el pipeline  | LangGraph (grafo de estado)               |
 
 Un solo LLM mezclaría clasificación, scoring de negocio y recuperación sin controles claros ni métricas por componente.
 
 ### ¿Por qué LangGraph (ADR-01 / ADR-06)?
 
-Orquestación explícita de nodos (anonimizar → clasificar → priorizar → RAG) con eventos por paso (WebSocket). En esta build el grafo es **secuencial**; el *conditional routing* completo del diseño (saltar RAG, escalar por prioridad alta) es extensión prevista, no requisito para demostrar el ciclo MVP.
+Orquestación explícita de nodos (anonimizar → clasificar → priorizar → RAG) con eventos por paso (WebSocket). En esta build el grafo es **secuencial**; el _conditional routing_ completo del diseño (saltar RAG, escalar por prioridad alta) es extensión prevista, no requisito para demostrar el ciclo MVP.
 
 ### ¿Por qué ChromaDB y no Pinecone / FAISS solo?
 
@@ -110,7 +110,7 @@ GPT-4o-mini (ADR-02), principalmente para **síntesis de artículos KEDB** (C6),
 
 ### ¿Por qué HDBSCAN y no K-Means para KEDB?
 
-ADR-05: no exige fijar *k* a priori; detecta clústeres de densidad variable y deja ruido fuera. Encaja con “agrupar lo que se parece lo suficiente” y filtrar clústeres con ≥5 tickets antes de sintetizar.
+ADR-05: no exige fijar _k_ a priori; detecta clústeres de densidad variable y deja ruido fuera. Encaja con “agrupar lo que se parece lo suficiente” y filtrar clústeres con ≥5 tickets antes de sintetizar.
 
 ### ¿Cómo anonimizan (Ley 29733)?
 
@@ -267,7 +267,7 @@ No. Explicar definición simplificada (sección 4) y juzgar por relevancia del T
 
 ### Textos de reserva (si piden otro dominio)
 
-Ver `DEMO.md` — prioridad: VPN → correo buzón lleno → STD. Evitar cuenta de usuario para lucir RAG.
+Ver [README.md](./README.md) — prioridad: VPN → correo buzón lleno → STD. Evitar cuenta de usuario para lucir RAG.
 
 ---
 
@@ -297,20 +297,20 @@ Meta ≤30 s end-to-end (C3+C4+C5+C7). En práctica suele ser pocos segundos si 
 
 ## 8. Respuestas de una frase (cheat sheet)
 
-| Tema | Frase |
-| :--- | :--- |
-| Problema | Recurrencia alta: se reinvestiga lo ya resuelto. |
-| Solución | Asistencia + KEDB generada + validación experta que vuelve a RAG. |
-| Decisión | El humano decide; el sistema recomienda. |
-| Clasificar | Embeddings + kNN en Chroma (train). |
-| Priorizar | Fórmula ADR-07 con pesos de negocio. |
-| Recuperar | Similitud coseno tickets + KEDB validados → Top-5. |
-| KEDB | HDBSCAN agrupa; LLM sintetiza; experto publica. |
-| Orquestar | LangGraph, eventos por nodo. |
-| F1 | Calidad de categoría; meta ≥0.80. |
-| Recall@5 demo | Proxy por mismo ID; no confundir con Recall semántico de tesis. |
-| Demo Kyocera | Mejor clúster (aptitud Alta, ~142 fuentes). |
-| Límites | Export GLPI, top-9, sin cierre automático, métricas completas en curso. |
+| Tema          | Frase                                                                   |
+| :------------ | :---------------------------------------------------------------------- |
+| Problema      | Recurrencia alta: se reinvestiga lo ya resuelto.                        |
+| Solución      | Asistencia + KEDB generada + validación experta que vuelve a RAG.       |
+| Decisión      | El humano decide; el sistema recomienda.                                |
+| Clasificar    | Embeddings + kNN en Chroma (train).                                     |
+| Priorizar     | Fórmula ADR-07 con pesos de negocio.                                    |
+| Recuperar     | Similitud coseno tickets + KEDB validados → Top-5.                      |
+| KEDB          | HDBSCAN agrupa; LLM sintetiza; experto publica.                         |
+| Orquestar     | LangGraph, eventos por nodo.                                            |
+| F1            | Calidad de categoría; meta ≥0.80.                                       |
+| Recall@5 demo | Proxy por mismo ID; no confundir con Recall semántico de tesis.         |
+| Demo Kyocera  | Mejor clúster (aptitud Alta, ~142 fuentes).                             |
+| Límites       | Export GLPI, top-9, sin cierre automático, métricas completas en curso. |
 
 ---
 
