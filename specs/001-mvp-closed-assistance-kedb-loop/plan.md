@@ -138,7 +138,7 @@ them. The baseline plan does not move code across these boundaries.
 
 | ID | Risk | Effect | Mitigation or owner |
 | -- | ---- | ------ | ------------------- |
-| R1 | No lifecycle audit trail | Cannot show who validated, edited, or archived an article; principle I is unmet | Follow-up audit trail spec; tracked deviation above |
+| R1 | No lifecycle audit trail | Cannot show who validated, edited, or archived an article; principle I is unmet | Spec [002-kedb-lifecycle-audit-trail](../002-kedb-lifecycle-audit-trail/spec.md); tracked deviation above |
 | R2 | Vector-store failures are logged and swallowed by `RAGAgent` | Outages look like no-hit results; evaluation counts them as misses, deflating the Recall@5 proxy | Follow-up retrieval failure signalling spec; pinned by a characterization test |
 | R3 | Publication is not atomic and nothing re-projects a validated article | Live Docs and vector index can disagree (observed live) | Report divergence; a re-projection path belongs to a follow-up spec |
 | R4 | Failed ARQ jobs report `status = complete` | Clients that read only `status` treat a failed evaluation as finished | Document `success`/`error`; contract now states it |

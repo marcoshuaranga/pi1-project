@@ -333,7 +333,7 @@ address them; none is promoted to a requirement of this baseline.
 - **No lifecycle audit trail**: constitution principle I requires every lifecycle
   transition to be auditable, but the store keeps only the current `estado` and a
   `version` counter. Who changed an article, when, and from which state is not
-  recorded (follow-up: a KEDB lifecycle audit trail spec).
+  recorded (follow-up: [specs/002-kedb-lifecycle-audit-trail](../002-kedb-lifecycle-audit-trail/spec.md)).
 - **Retrieval failures are hidden**: when the vector store fails, `retrieve` and
   `search_kedb` log the error and return whatever survived, possibly `[]`, with no
   signal to the caller. A total failure is indistinguishable from a no-hit result,
