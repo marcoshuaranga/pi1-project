@@ -79,12 +79,15 @@ class RAGAgent:
     def search_kedb(self, query: str, top_k: int = 10) -> list[SolucionSugerida]:
         vector = self.embedder.embed_text(query, cache_key=f"search:{query[:100]}")
         try:
-            results = self.kedb.query(query_embeddings=[vector], n_results=top_k)
+            results = search_validated_kedb(self.kedb, vector, top_k)
             parsed = self._parse_results(results, "kedb")
         except Exception:
             logger.exception("Búsqueda KEDB falló")
             parsed = []
         return parsed
+
+    def remove_articulo(self, articulo_id: str) -> None:
+        self.kedb.delete(ids=[articulo_id])
 
     def index_articulo(self, articulo_id: str, texto: str, metadata: dict) -> None:
         vector = self.embedder.embed_text(texto, cache_key=articulo_id)

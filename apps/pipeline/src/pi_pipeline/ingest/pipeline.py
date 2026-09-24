@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from pi_core.anonymize.anonymizer import Anonymizer
+from pi_core.anonymize.anonymizer import Anonymizer, validate_anonymized_texts
 from pi_core.config import Settings, get_settings
 from pi_core.enrich.reindex import CACHE_SUFFIX
 from pi_core.enrich.resolutions import SOLUCION_META_MAX, enrich_resolution
@@ -54,6 +54,7 @@ class IngestionPipeline:
         for _, row in df.iterrows():
             anon_titles.append(self.anonymizer.anonymize(str(row.get("_titulo", ""))).text)
             anon_solutions.append(self.anonymizer.anonymize(str(row.get("_solucion", ""))).text)
+        validate_anonymized_texts(anon_titles + anon_solutions)
         df["_titulo_anon"] = anon_titles
         df["_solucion_anon"] = anon_solutions
         out = self.output_dir / "sample_anonymized.parquet"
@@ -63,6 +64,11 @@ class IngestionPipeline:
     def run_ingest(self, anon_path: str | None = None) -> list[Ticket]:
         path = Path(anon_path or self.output_dir / "sample_anonymized.parquet")
         df = pd.read_parquet(path)
+        # The parquet may predate the run_anonymize gate; re-check before splits/embeddings.
+        validate_anonymized_texts(
+            [str(v) for v in df.get("_titulo_anon", [])]
+            + [str(v) for v in df.get("_solucion_anon", [])]
+        )
 
         fecha_col = _find_column(df, ["fecha", "apertura", "cierre", "date"])
         tickets: list[Ticket] = []

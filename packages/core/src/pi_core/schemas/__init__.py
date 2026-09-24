@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -152,6 +152,11 @@ class MetricasEvaluacion(BaseModel):
     kappa: float | None = None
     fecha_calculo: datetime
     muestra_tickets: int
+    # Legacy caches predate this field; every stored value so far is a proxy.
+    tipo_evidencia: Literal["medido", "objetivo", "proxy"] = "proxy"
+    fuente: str | None = None
+    metodo: str | None = None
+    dataset: str | None = None
 
 
 class JobEnqueueResponse(BaseModel):

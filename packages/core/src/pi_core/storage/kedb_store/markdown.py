@@ -93,6 +93,16 @@ def read_markdown(articulo_id: str, settings: Settings | None = None) -> str | N
     return path.read_text(encoding="utf-8")
 
 
+def delete_markdown(articulo_id: str, settings: Settings | None = None) -> bool:
+    """Remove a published projection; returns whether a file existed."""
+    settings = settings or get_settings()
+    path = docs_dir(settings) / f"{articulo_id}.md"
+    if not path.exists():
+        return False
+    path.unlink()
+    return True
+
+
 def _title_from_md(text: str) -> str | None:
     for line in text.splitlines():
         if line.startswith("# "):

@@ -5,11 +5,16 @@ from pi_core.schemas import SolucionSugerida
 from pi_core.storage.vector_db.search import search_validated_kedb
 
 
-def _results(*ids: str) -> dict:
+def _results(*ids: str, estado: str = "validado") -> dict:
     return {
         "ids": [list(ids)],
         "distances": [[0.1] * len(ids)],
-        "metadatas": [[{"titulo": f"Título {item}", "solucion": "Solución"} for item in ids]],
+        "metadatas": [
+            [
+                {"titulo": f"Título {item}", "solucion": "Solución", "estado": estado}
+                for item in ids
+            ]
+        ],
     }
 
 
@@ -52,7 +57,10 @@ def test_search_kedb_uses_call_limit_without_mutating_agent_limit():
 
     assert isinstance(results[0], SolucionSugerida)
     assert agent.top_k == 5
-    assert kedb.calls == [{"query_embeddings": [[1.0, 0.0]], "n_results": 10}]
+    assert kedb.calls == [
+        {"query_embeddings": [[1.0, 0.0]], "n_results": 10, "where": {"estado": "validado"}},
+        {"query_embeddings": [[1.0, 0.0]], "n_results": 20},
+    ]
 
 
 def test_retrieve_uses_validated_kedb_search_limit():
@@ -103,11 +111,34 @@ def test_search_validated_kedb_falls_back_when_filter_is_unsupported():
     assert "where" not in kedb.calls[1]
 
 
-def test_search_kedb_does_not_apply_validation_filter():
+def test_search_kedb_applies_validation_filter():
     kedb = FakeCollection()
     agent = _agent(FakeCollection(), kedb)
 
     agent.search_kedb("printer", top_k=3)
 
-    assert len(kedb.calls) == 1
-    assert "where" not in kedb.calls[0]
+    assert len(kedb.calls) == 2
+    assert kedb.calls[0]["where"] == {"estado": "validado"}
+    assert "where" not in kedb.calls[1]
+
+
+def test_search_validated_kedb_filters_drafts_on_fallback():
+    class MixedFallbackCollection(FakeCollection):
+        def query(self, **kwargs):
+            self.calls.append(kwargs)
+            if "where" in kwargs:
+                raise ValueError("where unsupported")
+            return {
+                "ids": [["draft", "validated"]],
+                "distances": [[0.1, 0.2]],
+                "metadatas": [[
+                    {"estado": "borrador"},
+                    {"estado": "validado"},
+                ]],
+            }
+
+    kedb = MixedFallbackCollection()
+    result = search_validated_kedb(kedb, [1.0, 0.0], n_results=3)
+
+    assert result["ids"] == [["validated"]]
+    assert result["metadatas"] == [[{"estado": "validado"}]]

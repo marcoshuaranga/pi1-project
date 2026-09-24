@@ -235,6 +235,12 @@ class KedbStore:
         if articulo.estado == KedbEstado.VALIDADO:
             write_markdown(articulo, self.settings)
 
+    def unpublish_markdown(self, articulo_id: str) -> None:
+        """Withdraw the docs projection once an article leaves `validado`."""
+        from pi_core.storage.kedb_store.markdown import delete_markdown
+
+        delete_markdown(articulo_id, self.settings)
+
     def pendientes(self) -> list[KedbArticulo]:
         return self.list_all(estado=KedbEstado.BORRADOR)
 

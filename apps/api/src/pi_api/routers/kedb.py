@@ -68,13 +68,19 @@ async def get_articulo(articulo_id: str):
 @router.patch("/articulos/{articulo_id}", response_model=KedbArticulo)
 async def update_articulo(articulo_id: str, body: KedbArticuloUpdate):
     """HU10 — approve / edit / reject article."""
+    store = get_store()
+    previo = store.get(articulo_id)
     try:
-        articulo = get_store().update(articulo_id, body)
+        articulo = store.update(articulo_id, body)
     except InvalidEstadoTransition as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
     if not articulo:
         raise HTTPException(status_code=404, detail="Artículo no encontrado")
-    await asyncio.to_thread(get_publisher().publish, articulo)
+    if articulo.estado == KedbEstado.VALIDADO:
+        await asyncio.to_thread(get_publisher().publish, articulo)
+    elif previo is not None and previo.estado == KedbEstado.VALIDADO:
+        # Reusable knowledge must not outlive its validation (FR-006).
+        await asyncio.to_thread(get_publisher().unpublish, articulo_id)
     return articulo
 
 

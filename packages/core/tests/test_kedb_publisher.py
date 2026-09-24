@@ -12,17 +12,25 @@ from pi_core.services.kedb_publisher import (
 class FakeStore:
     def __init__(self):
         self.published = []
+        self.unpublished = []
 
     def publish_markdown(self, articulo):
         self.published.append(articulo)
+
+    def unpublish_markdown(self, articulo_id):
+        self.unpublished.append(articulo_id)
 
 
 class FakeRag:
     def __init__(self):
         self.indexed = []
+        self.removed = []
 
     def index_articulo(self, articulo_id, texto, metadata):
         self.indexed.append((articulo_id, texto, metadata))
+
+    def remove_articulo(self, articulo_id):
+        self.removed.append(articulo_id)
 
 
 def test_publication_builds_one_projection_payload_for_validated_article():
@@ -101,3 +109,29 @@ def test_publish_reports_completed_and_failed_projections():
         raise AssertionError("Expected publication failure")
 
     assert store.published == [articulo]
+
+
+def test_unpublish_withdraws_article_from_both_projections():
+    store = FakeStore()
+    rag = FakeRag()
+
+    KedbPublisher(store, rag).unpublish("KEDB-TEST")
+
+    assert store.unpublished == ["KEDB-TEST"]
+    assert rag.removed == ["KEDB-TEST"]
+
+
+def test_unpublish_reports_completed_and_failed_projections():
+    class FailingRag(FakeRag):
+        def remove_articulo(self, articulo_id):
+            raise RuntimeError("vector unavailable")
+
+    store = FakeStore()
+
+    try:
+        KedbPublisher(store, FailingRag()).unpublish("KEDB-TEST")
+    except KedbPublicationError as exc:
+        assert exc.failed_projection == "vector"
+        assert exc.completed_projections == ("markdown",)
+    else:
+        raise AssertionError("Expected unpublication failure")

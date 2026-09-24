@@ -27,6 +27,10 @@ class EvaluationFramework:
                 "recall_at_5": 0.0,
                 "muestra": 0,
                 "kappa": None,
+                "tipo_evidencia": "proxy",
+                "fuente": "tickets_eval.json",
+                "metodo": "Sin datos de evaluación disponibles",
+                "dataset": "tickets_eval",
                 "fecha_calculo": datetime.now(UTC).isoformat(),
             }
 
@@ -62,6 +66,10 @@ class EvaluationFramework:
             "recall_at_5": round(recall, 4),
             "muestra": n,
             "kappa": None,
+            "tipo_evidencia": "proxy",
+            "fuente": "tickets_eval.json",
+            "metodo": "Recall@5 por coincidencia del ticket fuente",
+            "dataset": "tickets_eval",
             "fecha_calculo": datetime.now(UTC).isoformat(),
         }
         out = self.processed / "evaluation_results.json"
@@ -79,6 +87,10 @@ class EvaluationFramework:
                 "recall_at_5": 0.0,
                 "muestra": 0,
                 "kappa": None,
+                "tipo_evidencia": "proxy",
+                "fuente": "golden_set_sample.json",
+                "metodo": "Sin datos de evaluación disponibles",
+                "dataset": "golden_set",
                 "fecha_calculo": datetime.now(UTC).isoformat(),
             }
 
@@ -124,6 +136,10 @@ class EvaluationFramework:
             "recall_at_5": round(recall, 4),
             "muestra": n,
             "kappa": kappa,
+            "tipo_evidencia": "proxy",
+            "fuente": "golden_set_sample.json",
+            "metodo": "Recall@5 por coincidencia del ticket fuente; Kappa interanotador",
+            "dataset": "golden_set",
             "fecha_calculo": datetime.now(UTC).isoformat(),
         }
         out = self.processed / "evaluation_results_golden.json"

@@ -106,14 +106,25 @@ export default function DashboardPage() {
             </button>
           </div>
           {evaluacion ? (
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-              <span>
-                F1 macro: <strong>{evaluacion.f1_macro as number}</strong>
-              </span>
-              <span>
-                Recall@5: <strong>{evaluacion.recall_at_5 as number}</strong>
-              </span>
-              <span>Muestra: {evaluacion.muestra_tickets as number} tickets</span>
+            <div className="space-y-2 text-sm">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <span>
+                  F1 macro: <strong>{evaluacion.f1_macro as number}</strong>
+                </span>
+                <span>
+                  Recall@5: <strong>{evaluacion.recall_at_5 as number}</strong>
+                </span>
+                <span>Muestra: {evaluacion.muestra_tickets as number} tickets</span>
+                <span
+                  className={`badge badge-sm ${evaluacion.tipo_evidencia === "medido" ? "badge-success" : "badge-warning"}`}
+                >
+                  {String(evaluacion.tipo_evidencia ?? "proxy")}
+                </span>
+              </div>
+              <p className="text-xs opacity-70">
+                Dataset: {String(evaluacion.dataset ?? "desconocido")}
+                {evaluacion.metodo ? ` · ${String(evaluacion.metodo)}` : ""}
+              </p>
             </div>
           ) : (
             <p className="text-sm opacity-70">Sin caché aún. Usa recalcular para encolar el job.</p>

@@ -1,5 +1,6 @@
 """Metrics and evaluation endpoints (C9, HU15)."""
 
+import contextlib
 import json
 from collections import Counter
 from datetime import UTC, datetime
@@ -14,41 +15,46 @@ from pi_core.schemas import MetricasEvaluacion
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 
+def _cached_evaluacion(cached: Path, dataset: str) -> MetricasEvaluacion:
+    """Read a cached evaluation, or an explicit empty proxy when none exists."""
+    if not cached.exists():
+        return MetricasEvaluacion(
+            f1_macro=0.0,
+            recall_at_5=0.0,
+            kappa=None,
+            fecha_calculo=datetime.now(UTC),
+            muestra_tickets=0,
+            tipo_evidencia="proxy",
+            metodo="Sin resultados en caché; ejecutar la evaluación",
+            dataset=dataset,
+        )
+    data = json.loads(cached.read_text(encoding="utf-8"))
+    fecha = data.get("fecha_calculo")
+    fecha_calculo = datetime.now(UTC)
+    if isinstance(fecha, str):
+        with contextlib.suppress(ValueError):
+            fecha_calculo = datetime.fromisoformat(fecha)
+    return MetricasEvaluacion(
+        f1_macro=data.get("f1_macro", 0.0),
+        recall_at_5=data.get("recall_at_5", 0.0),
+        kappa=data.get("kappa"),
+        fecha_calculo=fecha_calculo,
+        muestra_tickets=data.get("muestra", 0),
+        tipo_evidencia=data.get("tipo_evidencia", "proxy"),
+        fuente=data.get("fuente"),
+        metodo=data.get("metodo"),
+        dataset=data.get("dataset", dataset),
+    )
+
+
 @router.get("/evaluacion", response_model=MetricasEvaluacion)
 async def get_evaluacion():
     """C9 — F1, Recall@5 metrics from cached results.
 
     To recompute, POST /metrics/evaluacion (ARQ worker).
     """
-    settings = get_settings()
-    processed = Path(settings.data_processed_path)
-    cached = processed / "evaluation_results.json"
-
-    if cached.exists():
-        data = json.loads(cached.read_text(encoding="utf-8"))
-        fecha = data.get("fecha_calculo")
-        if isinstance(fecha, str):
-            try:
-                fecha_calculo = datetime.fromisoformat(fecha)
-            except ValueError:
-                fecha_calculo = datetime.now(UTC)
-        else:
-            fecha_calculo = datetime.now(UTC)
-        return MetricasEvaluacion(
-            f1_macro=data.get("f1_macro", 0.0),
-            recall_at_5=data.get("recall_at_5", 0.0),
-            kappa=data.get("kappa"),
-            fecha_calculo=fecha_calculo,
-            muestra_tickets=data.get("muestra", 0),
-        )
-
-    return MetricasEvaluacion(
-        f1_macro=0.0,
-        recall_at_5=0.0,
-        kappa=None,
-        fecha_calculo=datetime.now(UTC),
-        muestra_tickets=0,
-    )
+    processed = Path(get_settings().data_processed_path)
+    return _cached_evaluacion(processed / "evaluation_results.json", "tickets_eval")
 
 
 @router.post("/evaluacion", status_code=202)
@@ -81,35 +87,8 @@ async def get_evaluacion_golden():
     A diferencia de /metrics/evaluacion (muestra aleatoria de tickets_eval.json),
     este endpoint también reporta Kappa inter-anotador.
     """
-    settings = get_settings()
-    processed = Path(settings.data_processed_path)
-    cached = processed / "evaluation_results_golden.json"
-
-    if cached.exists():
-        data = json.loads(cached.read_text(encoding="utf-8"))
-        fecha = data.get("fecha_calculo")
-        if isinstance(fecha, str):
-            try:
-                fecha_calculo = datetime.fromisoformat(fecha)
-            except ValueError:
-                fecha_calculo = datetime.now(UTC)
-        else:
-            fecha_calculo = datetime.now(UTC)
-        return MetricasEvaluacion(
-            f1_macro=data.get("f1_macro", 0.0),
-            recall_at_5=data.get("recall_at_5", 0.0),
-            kappa=data.get("kappa"),
-            fecha_calculo=fecha_calculo,
-            muestra_tickets=data.get("muestra", 0),
-        )
-
-    return MetricasEvaluacion(
-        f1_macro=0.0,
-        recall_at_5=0.0,
-        kappa=None,
-        fecha_calculo=datetime.now(UTC),
-        muestra_tickets=0,
-    )
+    processed = Path(get_settings().data_processed_path)
+    return _cached_evaluacion(processed / "evaluation_results_golden.json", "golden_set")
 
 
 @router.post("/evaluacion-golden", status_code=202)

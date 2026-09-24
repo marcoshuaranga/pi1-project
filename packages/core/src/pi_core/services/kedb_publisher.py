@@ -55,6 +55,8 @@ class KedbPublicationError(RuntimeError):
 class _Projection(Protocol):
     def publish(self, publication: KedbPublication) -> None: ...
 
+    def unpublish(self, articulo_id: str) -> None: ...
+
 
 class _MarkdownProjection:
     def __init__(self, store: KedbStore):
@@ -62,6 +64,9 @@ class _MarkdownProjection:
 
     def publish(self, publication: KedbPublication) -> None:
         self.store.publish_markdown(publication.article)
+
+    def unpublish(self, articulo_id: str) -> None:
+        self.store.unpublish_markdown(articulo_id)
 
 
 class _VectorProjection:
@@ -74,6 +79,9 @@ class _VectorProjection:
             publication.text,
             dict(publication.metadata),
         )
+
+    def unpublish(self, articulo_id: str) -> None:
+        self.rag.remove_articulo(articulo_id)
 
 
 class KedbPublisher:
@@ -94,6 +102,16 @@ class KedbPublisher:
         for name, projection in self.projections:
             try:
                 projection.publish(publication)
+            except Exception as exc:
+                raise KedbPublicationError(name, tuple(completed)) from exc
+            completed.append(name)
+
+    def unpublish(self, articulo_id: str) -> None:
+        """Withdraw an article that left `validado` from every read projection."""
+        completed: list[str] = []
+        for name, projection in self.projections:
+            try:
+                projection.unpublish(articulo_id)
             except Exception as exc:
                 raise KedbPublicationError(name, tuple(completed)) from exc
             completed.append(name)

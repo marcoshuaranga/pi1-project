@@ -49,5 +49,9 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "UP", "SIM"]
 ignore = ["E501"]  # line length is handled by `ruff format`, not worth enforcing separately
 
+[tool.ruff.lint.per-file-ignores]
+# Scripts add the repo root to sys.path before importing pi_core (runs inside Docker).
+"scripts/*" = ["E402"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["pi_core", "pi_api", "pi_worker", "pi_pipeline"]

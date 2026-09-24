@@ -32,6 +32,27 @@ class AnonymizationResult:
     replacements: list[dict[str, str]] = field(default_factory=list)
 
 
+def find_residual_pii(texts: list[str]) -> list[dict[str, str | int]]:
+    """Return structured PII matches that remain after anonymization."""
+    residual: list[dict[str, str | int]] = []
+    for index, text in enumerate(texts):
+        for pattern, token in PII_PATTERNS:
+            for match in re.finditer(pattern, text):
+                residual.append({"index": index, "match": match.group(), "token": token})
+    return residual
+
+
+def validate_anonymized_texts(texts: list[str]) -> None:
+    """Block downstream processing when structured PII remains in processed text.
+
+    Re-applies the same regex patterns the anonymizer uses, so it catches
+    non-idempotent or bypassed anonymization, not names missed by the NER model.
+    """
+    residual = find_residual_pii(texts)
+    if residual:
+        raise ValueError(f"PII residual encontrado: {len(residual)} coincidencias")
+
+
 class Anonymizer:
     def __init__(self, nlp=None, *, load_model: bool = True):
         if nlp is not None:
