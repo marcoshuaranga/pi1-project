@@ -120,7 +120,7 @@ description: "Task list for validating the reverse-engineered closed assistance-
 - [x] T039 [P] Add cross-links from `docs/README.md`, `README.md`, and `specs/001-mvp-closed-assistance-kedb-loop/quickstart.md`
 - [x] T040 Run `uv run pytest` and `uv run ruff check .` from the repository root and record results in the feature review (see Validation Record)
 - [x] T041 Run `npm run build` from `web/` and record results in the feature review
-- [ ] T042 Run the documented Docker/demo smoke path from `specs/001-mvp-closed-assistance-kedb-loop/quickstart.md`
+- [x] T042 Run the documented Docker/demo smoke path from `specs/001-mvp-closed-assistance-kedb-loop/quickstart.md` (run 2026-09-24; results and findings in the Validation Record)
 - [x] T043 [US1] Verify the 30-second assistance target measurement path in `packages/core/tests/test_pipeline_latency.py`; live measurement remains service-dependent and is labelled as an integration check
 - [x] T044 [US4] Extend `MetricasEvaluacion` and the metrics API responses in `packages/core/src/pi_core/schemas/__init__.py` and `apps/api/src/pi_api/routers/metrics.py` with evidence kind and method/source context, then cover the fields in `apps/api/tests/test_metrics_evaluation_contract.py`
 - [x] T045 [US3] Withdraw the Markdown and vector projections when a validated article moves to `obsoleto` or `archivado` in `apps/api/src/pi_api/routers/kedb.py`, `packages/core/src/pi_core/services/kedb_publisher.py`, `packages/core/src/pi_core/storage/kedb_store/`, and `packages/core/src/pi_core/agents/rag/agent.py`, covered by `apps/api/tests/test_kedb_lifecycle_contract.py` and `packages/core/tests/test_kedb_publisher.py`
@@ -179,7 +179,36 @@ Recorded 2026-09-23 against the working tree:
 - `uv run pytest`: 119 passed, 2 skipped (integration tests that need live services).
 - `uv run ruff check .`: all checks passed.
 - `npm run build` (from `web/`): passed.
-- Not run: T042 Docker/demo smoke path (needs the compose stack up).
+### T042 Docker smoke (2026-09-24)
+
+Stack rebuilt with `docker compose up --build -d api worker web` and exercised over
+HTTP. A throwaway article (`KEDB-SMOKE-T042`) was used so the existing KEDB data was
+left untouched (6 `borrador`, 3 `validado` before and after).
+
+Passed:
+
+- Lifecycle: `borrador -> archivado` returns 409; approving publishes; the article is
+  searchable and in Live Docs while `validado`; after `archivado` it is gone from
+  `/kedb/buscar` and `/kedb/docs` (doc `404`); `archivado -> validado` returns 409.
+- Tickets: `POST /tickets` returns category, confidence, priority, and 5 ordered
+  suggestions; `GET /tickets/{id}` is `completado`; short text is `422`; unknown id
+  is `404`.
+- Metrics: both evaluation endpoints return `tipo_evidencia = proxy`; the missing
+  golden cache is an explicit empty proxy; the dashboard returns `200`.
+- Web: `/`, `/whatsapp`, `/experto`, `/kedb`, `/docs`, `/dashboard` all serve `200`.
+- SC-001 (30 s target): first request after restart took 30.3 s (cold); warm
+  requests took 1.7-2.3 s. The target is met warm and not met cold.
+
+Findings, none introduced by these changes:
+
+- `POST /metrics/evaluacion` fails: the worker raises a Chroma HNSW error ("Cannot
+  return the results in a contigious 2D array. Probably ef or M is too small") from
+  `classifier/agent.py:39-46` on the 57,749-entry tickets collection. ARQ reports the
+  job as `complete` while `/jobs/{id}/result` carries the error, and the API keeps
+  serving the July 2026 cache (`recall_at_5 = 0.22`, no `fuente`/`metodo`).
+- Validated article `KEDB-DCE86F1BCAAF` has a Live Docs file but no vector entry
+  (the KEDB collection holds 2 of the 3 validated articles), so it is not
+  retrievable. Nothing re-projects an existing validated article to the vector store.
 
 ## Notes
 
