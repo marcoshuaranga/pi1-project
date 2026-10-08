@@ -97,8 +97,10 @@ reason, and confirm the article's history section shows the new entry immediatel
 
 1. **Given** the expert view, **When** an expert enters an actor name once, **Then**
    that name is used for their following changes until they change it.
-2. **Given** an expert rejects or archives an article, **When** the reason field is
-   empty, **Then** the action cannot be submitted and the view says why.
+2. **Given** an expert rejects an article, **When** the reason field is empty,
+   **Then** the action cannot be submitted and the view says why. (The view offers
+   approve and reject only; the reason for archiving is enforced where archiving is
+   requested, see FR-007.)
 3. **Given** an article is selected, **When** the view loads, **Then** its history is
    shown in the same screen, newest entry clearly identifiable.
 4. **Given** the history cannot be loaded, **When** the view opens an article, **Then**
@@ -208,7 +210,7 @@ destination.
   first, filtered by article, actor, resulting state, and date range, with bounded page
   size.
 - **FR-012**: The expert view MUST let an expert set an actor label, MUST require a
-  reason for rejection and archiving, and MUST show the selected article's history.
+  reason for rejection, and MUST show the selected article's history.
 - **FR-013**: The system MUST state, for an article created before this feature, that no
   history exists before the feature, and MUST NOT backfill inferred entries.
 - **FR-014**: Entries MUST use the canonical domain terms of `CONTEXT.md` for states and
@@ -216,12 +218,14 @@ destination.
 - **FR-015**: The system MUST NOT change which lifecycle transitions are permitted, nor
   the existing responses of the lifecycle, search, and Live Docs routes for successful
   requests, beyond accepting the optional actor and reason inputs.
+- **FR-016**: The system MUST record an entry when an article is deleted, and the
+  entries of a deleted article MUST remain readable.
 
 ### Key Entities _(include if feature involves data)_
 
 - **Audit Entry (`RegistroAuditoria`)**: An immutable record of one event on one
   article: identifier, article identifier, event kind (creation, state change, content
-  edit, publication, withdrawal, publication failure), previous state, new state,
+  edit, publication, withdrawal, publication failure, deletion), previous state, new state,
   version, changed fields, actor and actor kind (declared, not identified, system),
   timestamp, reason or summary, and a link to the entry that caused it when it is a
   publication effect.
