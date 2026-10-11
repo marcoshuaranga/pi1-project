@@ -34,6 +34,7 @@ from pi_core.constants import GOLDEN_CATEGORIES, TOP9_CATEGORIES
 POOL_FILE = "golden_pool.json"
 GOLDEN_FILE = "golden_set_sample.json"
 KAPPA_FILE = "golden_set_kappa.json"
+ARBITRAJE_FILE = "golden_arbitraje.json"
 ANNOTATION_DIR = "golden_annotation"
 EXPERT1_FILE = "experto1.xlsx"
 EXPERT2_FILE = "experto2.xlsx"
@@ -192,8 +193,9 @@ def score_and_merge(processed: Path) -> dict[str, Any]:
     """Lee las 2 planillas llenas, calcula Kappa y escribe golden_set_sample.json.
 
     Desacuerdos en el subconjunto de doble anotación quedan con
-    `categoria_gold: null` y `necesita_arbitraje: true` — se resuelven a mano
-    (tercer árbitro o discusión) antes de usar el golden set para evaluar.
+    `categoria_gold: null` y `necesita_arbitraje: true` hasta que se resuelvan en
+    `golden_arbitraje.json` ({ticket_id: categoria}); el archivo se reaplica en cada
+    ejecución, así el arbitraje sobrevive a volver a correr `score`.
     """
     pool_path = processed / POOL_FILE
     if not pool_path.exists():
@@ -202,6 +204,14 @@ def score_and_merge(processed: Path) -> dict[str, Any]:
 
     experto1 = _read_annotations(processed / ANNOTATION_DIR / EXPERT1_FILE)
     experto2 = _read_annotations(processed / ANNOTATION_DIR / EXPERT2_FILE)
+
+    arbitraje_path = processed / ARBITRAJE_FILE
+    arbitraje: dict[str, str] = (
+        json.loads(arbitraje_path.read_text(encoding="utf-8")) if arbitraje_path.exists() else {}
+    )
+    invalid = {t: c for t, c in arbitraje.items() if c not in GOLDEN_CATEGORIES}
+    if invalid:
+        raise ValueError(f"{arbitraje_path}: categorías inválidas {invalid}")
 
     missing1 = [e["ticket_id"] for e in pool if not experto1.get(e["ticket_id"])]
     if missing1:
@@ -228,9 +238,10 @@ def score_and_merge(processed: Path) -> dict[str, Any]:
         if e["doble_anotacion"]:
             acuerdo = cat1 == cat2
             if not acuerdo:
-                necesita_arbitraje = True
-                gold = None
-                n_arbitraje += 1
+                gold = arbitraje.get(tid)
+                if gold is None:
+                    necesita_arbitraje = True
+                    n_arbitraje += 1
         entries.append(
             {
                 "golden_id": e["golden_id"],
@@ -241,6 +252,7 @@ def score_and_merge(processed: Path) -> dict[str, Any]:
                 "doble_anotacion": e["doble_anotacion"],
                 "acuerdo": acuerdo,
                 "necesita_arbitraje": necesita_arbitraje,
+                "categoria_arbitraje": arbitraje.get(tid),
                 "split": "eval",
             }
         )

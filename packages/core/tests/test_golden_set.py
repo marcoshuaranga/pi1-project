@@ -201,3 +201,28 @@ def test_read_annotations_accepts_fuera_top9(tmp_path):
     wb.save(path)
 
     assert FUERA_TOP9 in _read_annotations(path).values()
+
+
+def test_score_and_merge_applies_persisted_arbitration(tmp_path):
+    _write_tickets_eval(tmp_path, {CAT_A: 20, CAT_B: 20})
+    entries = build_pool(tmp_path, seed=3, n=10, n_kappa=4)
+    kappa_ids = [e["ticket_id"] for e in entries if e["doble_anotacion"]]
+    truth = {e["ticket_id"]: e["categoria_top9"] for e in entries}
+    _fill_workbook(tmp_path / ANNOTATION_DIR / EXPERT1_FILE, truth)
+    experto2 = {tid: truth[tid] for tid in kappa_ids}
+    disagreement_id = kappa_ids[0]
+    experto2[disagreement_id] = CAT_B if truth[disagreement_id] == CAT_A else CAT_A
+    _fill_workbook(tmp_path / ANNOTATION_DIR / EXPERT2_FILE, experto2)
+
+    (tmp_path / "golden_arbitraje.json").write_text(json.dumps({disagreement_id: CAT_C}), encoding="utf-8")
+    result = score_and_merge(tmp_path)
+
+    assert result["n_arbitraje_pendiente"] == 0
+    golden = {e["ticket_id"]: e for e in json.loads((tmp_path / "golden_set_sample.json").read_text(encoding="utf-8"))}
+    assert golden[disagreement_id]["categoria_gold"] == CAT_C
+    assert golden[disagreement_id]["necesita_arbitraje"] is False
+    assert golden[disagreement_id]["categoria_arbitraje"] == CAT_C
+
+    (tmp_path / "golden_arbitraje.json").write_text(json.dumps({disagreement_id: "inventada"}), encoding="utf-8")
+    with pytest.raises(ValueError, match="categorías inválidas"):
+        score_and_merge(tmp_path)
