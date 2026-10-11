@@ -1,6 +1,7 @@
 """C9 — Evaluation framework."""
 
 import json
+import logging
 import random
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,6 +12,8 @@ from pi_core.agents.classifier.agent import ClassifierAgent
 from pi_core.agents.rag.agent import RAGAgent
 from pi_core.config import get_settings
 from pi_core.constants import FUERA_TOP9
+
+logger = logging.getLogger(__name__)
 
 
 class EvaluationFramework:
@@ -107,6 +110,7 @@ class EvaluationFramework:
         y_pred = []
         recall_hits = 0
         fuera_top9 = 0
+        errores_recuperacion = 0
 
         for entry in golden:
             gold_cat = entry.get("categoria_gold")
@@ -120,11 +124,18 @@ class EvaluationFramework:
             if not texto:
                 continue
 
-            result = self.classifier.classify(texto)
+            # Chroma (HNSW) devuelve error para algunas consultas; se omiten y se reportan
+            # en vez de abortar toda la evaluación o mezclar un método de respaldo.
+            try:
+                result = self.classifier.classify(texto)
+                soluciones = self.rag.retrieve(texto, gold_cat)
+            except Exception:
+                logger.warning("Recuperación falló para ticket %s; se omite", entry["ticket_id"], exc_info=True)
+                errores_recuperacion += 1
+                continue
             y_true.append(gold_cat)
             y_pred.append(result["categoria"])
 
-            soluciones = self.rag.retrieve(texto, gold_cat)
             found = any(s.articulo_o_ticket_id == entry["ticket_id"] for s in soluciones)
             if found:
                 recall_hits += 1
@@ -141,6 +152,7 @@ class EvaluationFramework:
             "recall_at_5": round(recall, 4),
             "muestra": n,
             "fuera_top9_excluidos": fuera_top9,
+            "errores_recuperacion": errores_recuperacion,
             "kappa": kappa,
             "tipo_evidencia": "proxy",
             "fuente": "golden_set_sample.json",
