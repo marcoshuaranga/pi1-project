@@ -10,6 +10,7 @@ from sklearn.metrics import f1_score
 from pi_core.agents.classifier.agent import ClassifierAgent
 from pi_core.agents.rag.agent import RAGAgent
 from pi_core.config import get_settings
+from pi_core.constants import FUERA_TOP9
 
 
 class EvaluationFramework:
@@ -105,11 +106,15 @@ class EvaluationFramework:
         y_true = []
         y_pred = []
         recall_hits = 0
+        fuera_top9 = 0
 
         for entry in golden:
             gold_cat = entry.get("categoria_gold")
             ticket = tickets_by_id.get(entry.get("ticket_id"))
             if not gold_cat or not ticket:
+                continue
+            if gold_cat == FUERA_TOP9:
+                fuera_top9 += 1
                 continue
             texto = ticket.get("titulo_anon", "")
             if not texto:
@@ -135,6 +140,7 @@ class EvaluationFramework:
             "f1_macro": round(f1, 4),
             "recall_at_5": round(recall, 4),
             "muestra": n,
+            "fuera_top9_excluidos": fuera_top9,
             "kappa": kappa,
             "tipo_evidencia": "proxy",
             "fuente": "golden_set_sample.json",

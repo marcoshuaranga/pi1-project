@@ -187,3 +187,17 @@ def test_read_annotations_rejects_invalid_category(tmp_path):
 
     with pytest.raises(ValueError, match="no es una categoría top-9 válida"):
         _read_annotations(path)
+
+
+def test_read_annotations_accepts_fuera_top9(tmp_path):
+    from pi_core.constants import FUERA_TOP9
+
+    _write_tickets_eval(tmp_path, {CAT_A: 5})
+    build_pool(tmp_path, seed=1, n=5, n_kappa=1)
+    path = tmp_path / ANNOTATION_DIR / EXPERT1_FILE
+    wb = load_workbook(path)
+    for row in wb["anotacion"].iter_rows(min_row=2, max_row=2):
+        row[2].value = FUERA_TOP9
+    wb.save(path)
+
+    assert FUERA_TOP9 in _read_annotations(path).values()

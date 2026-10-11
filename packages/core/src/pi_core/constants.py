@@ -23,12 +23,19 @@ TOP9_PATTERNS: list[tuple[str, str]] = [
     ("No accede al servicio", TOP9_CATEGORIES[3]),
     ("VPN > Habilitación", TOP9_CATEGORIES[4]),
     ("Habilitación del servicio", TOP9_CATEGORIES[4]),
-    ("Cuenta de usuario", TOP9_CATEGORIES[5]),
-    ("Alta", TOP9_CATEGORIES[5]),
+    # Más específicos primero: normalize_category devuelve la primera coincidencia, y
+    # "Cuenta de usuario" está contenido en las tres subcategorías de cuenta.
     ("Bloqueo", TOP9_CATEGORIES[6]),
     ("Vigencia", TOP9_CATEGORIES[7]),
+    ("Cuenta de usuario", TOP9_CATEGORIES[5]),
+    ("Alta", TOP9_CATEGORIES[5]),
     ("Buzón lleno", TOP9_CATEGORIES[8]),
     ("Correo", TOP9_CATEGORIES[8]),
 ]
+
+# Etiqueta válida solo en el golden set: tickets que ninguna categoría top-9 cubre (monitor, USB,
+# red, traslado de equipos...). No es una salida del Clasificador y se excluye de F1 / Recall@5.
+FUERA_TOP9 = "Otros (fuera del top-9)"
+GOLDEN_CATEGORIES: list[str] = [*TOP9_CATEGORIES, FUERA_TOP9]
 
 PRIORIDADES = ["Baja", "Media", "Alta", "Crítica"]

@@ -25,3 +25,11 @@ def test_assign_split_eval():
 
 def test_assign_split_holdout():
     assert assign_split(datetime(2025, 10, 15)) == "holdout"
+
+
+def test_normalize_category_cuenta_de_usuario_subcategorias():
+    # "Cuenta de usuario" está contenido en las 3 subcategorías; Bloqueo/Vigencia no deben colapsar a Alta.
+    assert normalize_category("Cuenta de usuario > Alta") == "Cuenta de usuario > Alta"
+    assert normalize_category("Cuenta de usuario > Bloqueo") == "Cuenta de usuario > Bloqueo"
+    assert normalize_category("Cuenta de usuario > Vigencia") == "Cuenta de usuario > Vigencia"
+    assert normalize_category("Cuenta de usuario") == "Cuenta de usuario > Alta"

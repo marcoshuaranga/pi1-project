@@ -29,7 +29,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.worksheet.datavalidation import DataValidation
 from sklearn.metrics import cohen_kappa_score
 
-from pi_core.constants import TOP9_CATEGORIES
+from pi_core.constants import GOLDEN_CATEGORIES, TOP9_CATEGORIES
 
 POOL_FILE = "golden_pool.json"
 GOLDEN_FILE = "golden_set_sample.json"
@@ -119,14 +119,14 @@ def _new_annotation_workbook(rows: list[dict[str, Any]], shuffle_seed: int) -> W
         ws.append([row["ticket_id"], row["titulo_anon"], ""])
 
     cats_ws = wb.create_sheet("categorias")
-    for cat in TOP9_CATEGORIES:
+    for cat in GOLDEN_CATEGORIES:
         cats_ws.append([cat])
     cats_ws.sheet_state = "hidden"
 
     last_row = len(order) + 1
     dv = DataValidation(
         type="list",
-        formula1=f"=categorias!$A$1:$A${len(TOP9_CATEGORIES)}",
+        formula1=f"=categorias!$A$1:$A${len(GOLDEN_CATEGORIES)}",
         allow_blank=True,
     )
     dv.error = "Elige una categoría de la lista desplegable"
@@ -182,7 +182,7 @@ def _read_annotations(path: Path) -> dict[str, str | None]:
         categoria = row[cat_col]
         if categoria:
             categoria = str(categoria).strip()
-            if categoria not in TOP9_CATEGORIES:
+            if categoria not in GOLDEN_CATEGORIES:
                 raise ValueError(f"{path}: '{categoria}' (ticket {ticket_id}) no es una categoría top-9 válida")
         out[ticket_id] = categoria or None
     return out
