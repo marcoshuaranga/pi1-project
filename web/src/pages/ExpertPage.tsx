@@ -364,7 +364,8 @@ export default function ExpertPage() {
                   <h4 className="font-semibold text-sm">Trazabilidad N:1 (HU09)</h4>
                   <p className="text-sm mt-1">
                     <span className="badge badge-primary">
-                      {selected.tickets_fuente.length} tickets fuente
+                      {selected.tickets_fuente.length}{" "}
+                      {selected.tickets_fuente.length === 1 ? "ticket fuente" : "tickets fuente"}
                     </span>
                   </p>
                   <p className="text-xs font-mono text-base-content/70 mt-2 break-all">
