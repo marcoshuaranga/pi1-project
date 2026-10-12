@@ -245,9 +245,10 @@ services:
       - pipeline
     deploy:
       resources:
-        # Solo al re-ingerir/embeber; batch embeddings + spaCy
+        # Solo al re-ingerir/embeber; batch embeddings + spaCy.
+        # Docker rechaza el contenedor si el límite excede las CPUs de la VM: ajusta PIPELINE_CPUS en .env.
         limits:
-          cpus: "6.00"
+          cpus: "${PIPELINE_CPUS:-6.00}"
           memory: 6G
         reservations:
           cpus: "2.00"
