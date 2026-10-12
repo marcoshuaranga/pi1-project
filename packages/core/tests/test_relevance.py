@@ -19,12 +19,9 @@ CAT = TOP9_CATEGORIES[0]
 
 
 class FakeRag:
-    top_k = 5
-
-    def retrieve(self, texto, categoria=None):
-        assert self.top_k == 6  # un extra para poder descartar el propio ticket
+    def retrieve(self, texto, categoria=None, excluir_ids=None):
         propio = texto.replace("titulo ", "T")
-        ids = [propio, "r1", "r2", "r3", "r4", "r5"]
+        ids = [i for i in [propio, "r1", "r2", "r3", "r4", "r5"] if i not in (excluir_ids or ())]
         return [
             SimpleNamespace(articulo_o_ticket_id=i, tipo="ticket", titulo=f"tit {i}", solucion=f"sol {i}", score=0.9)
             for i in ids

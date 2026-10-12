@@ -81,15 +81,8 @@ class EvaluationFramework:
         return result
 
     def _retrieve_con_y_sin_propio(self, texto: str, ticket_id: str, k: int = 5):
-        """Top-k tal cual (incluye al propio ticket) y top-k sin él, con una sola consulta."""
-        previo = self.rag.top_k
-        self.rag.top_k = k + 1
-        try:
-            todas = self.rag.retrieve(texto)
-        finally:
-            self.rag.top_k = previo
-        sin_propio = [s for s in todas if s.articulo_o_ticket_id != ticket_id][:k]
-        return todas[:k], sin_propio
+        """Top-K tal cual (puede incluir al propio ticket) y top-K sin él (excluido antes de deduplicar)."""
+        return self.rag.retrieve(texto), self.rag.retrieve(texto, excluir_ids={ticket_id})
 
     def _load_relevance_experto(self) -> dict:
         """Recall@5 con juicio experto, si ya se calculó (scripts/build_relevance_set.py score)."""

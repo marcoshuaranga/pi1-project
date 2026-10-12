@@ -12,6 +12,15 @@ from pi_core.storage.vector_db.search import search_validated_kedb
 
 logger = logging.getLogger(__name__)
 
+# Se piden más vecinos que top_k porque muchos tickets repiten la misma resolución y se descartan
+# al deduplicar por texto; con pocos candidatos el top-K quedaría con menos de K soluciones distintas.
+_OVERFETCH = 40
+
+
+def _clave_solucion(s: SolucionSugerida) -> str | None:
+    """Texto de la solución normalizado; None si no tiene (entonces solo se deduplica por id)."""
+    return " ".join((s.solucion or "").lower().split()) or None
+
 
 class RAGAgent:
     def __init__(
@@ -27,14 +36,20 @@ class RAGAgent:
         self.kedb = kedb if kedb is not None else get_kedb_collection(self.settings)
         self.top_k = top_k
 
-    def retrieve(self, texto: str, categoria: str | None = None) -> list[SolucionSugerida]:
+    def retrieve(
+        self, texto: str, categoria: str | None = None, excluir_ids: set[str] | None = None
+    ) -> list[SolucionSugerida]:
+        """Top-K soluciones distintas (por id y por texto de solución), de mayor a menor score.
+
+        `excluir_ids` se descarta antes de deduplicar: sirve para evaluar sin contar el propio ticket.
+        """
         vector = self.embedder.embed_text(texto, cache_key=f"rag:{texto[:100]}")
         soluciones: list[SolucionSugerida] = []
 
         # Search tickets
         try:
             ticket_results = self.tickets.query(
-                query_embeddings=[vector], n_results=self.top_k * 2
+                query_embeddings=[vector], n_results=self.top_k * _OVERFETCH
             )
             soluciones.extend(self._parse_results(ticket_results, "ticket"))
         except Exception:
@@ -48,12 +63,17 @@ class RAGAgent:
             logger.exception("Chroma query falló en colección KEDB")
 
         soluciones.sort(key=lambda s: s.score, reverse=True)
-        seen = set()
+        seen_ids: set[str] = set(excluir_ids or ())
+        seen_texts: set[str] = set()
         unique: list[SolucionSugerida] = []
         for s in soluciones:
-            if s.articulo_o_ticket_id not in seen:
-                seen.add(s.articulo_o_ticket_id)
-                unique.append(s)
+            clave = _clave_solucion(s)
+            if s.articulo_o_ticket_id in seen_ids or (clave is not None and clave in seen_texts):
+                continue
+            seen_ids.add(s.articulo_o_ticket_id)
+            if clave is not None:
+                seen_texts.add(clave)
+            unique.append(s)
             if len(unique) >= self.top_k:
                 break
         return unique
