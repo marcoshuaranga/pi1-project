@@ -255,6 +255,53 @@ textarea {
   max-width: 100%;
 }
 
+/* Paleta de cabeceras por rol: Operador = primary (morado), Experto = verde azulado, Coordinador = grafito. */
+.page-header-experto {
+  background: #0f766e;
+  color: #fff;
+}
+
+.page-header-coordinador {
+  background: #1f2a44;
+  color: #fff;
+}
+
+:root[data-theme="dark"] .page-header-experto {
+  background: #115e59;
+}
+
+:root[data-theme="dark"] .page-header-coordinador {
+  background: #263353;
+}
+
+/* Foco visible para navegación por teclado (WCAG 2.4.7). */
+.app-nav-link:focus-visible,
+.btn:focus-visible,
+.link:focus-visible,
+.menu button:focus-visible,
+.theme-toggle:focus-visible,
+.sidebar-collapse-button:focus-visible,
+.mobile-menu-toggle:focus-visible {
+  outline: 2px solid #9ee7d2;
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 50;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #111b2e;
+  color: #fff;
+  transition: top .15s ease;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
 .app-nav {
   display: grid;
   gap: 6px;

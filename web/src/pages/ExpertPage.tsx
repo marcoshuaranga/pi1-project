@@ -199,14 +199,14 @@ export default function ExpertPage() {
 
   return (
     <div className="max-w-5xl mx-auto p-4">
-      <div className="navbar page-header bg-secondary text-secondary-content rounded-lg mb-4 px-4 shadow flex-wrap gap-2">
-        <span className="text-lg font-bold">Validación KEDB — Experto Técnico</span>
-        <span className="badge badge-warning">{pendientes.length} pendientes</span>
+      <div className="navbar page-header page-header-experto rounded-lg mb-4 px-4 shadow flex-wrap gap-2">
+        <h1 className="text-lg font-bold">Validación KEDB — Experto Técnico</h1>
+        <span className="badge badge-warning" aria-label={`${pendientes.length} artículos pendientes de validación`}>{pendientes.length} pendientes</span>
         {generacionOn && (
           <div className="ml-auto">
             <button
               type="button"
-              className="btn btn-sm btn-primary"
+              className="btn btn-sm btn-neutral"
               onClick={handleGenerate}
               disabled={busy}
             >
@@ -224,13 +224,13 @@ export default function ExpertPage() {
       </div>
 
       {jobRun.status && (
-        <div className="alert alert-info mb-4 text-sm">
+        <div role="status" className="alert alert-info mb-4 text-sm">
           <span>{jobRun.status}</span>
         </div>
       )}
 
       {msg && (
-        <div className="alert alert-success mb-4 text-sm">
+        <div role="status" className="alert alert-success mb-4 text-sm">
           <span>{msg}</span>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setMsg("")}>
             Cerrar
@@ -239,7 +239,7 @@ export default function ExpertPage() {
       )}
 
       {error && (
-        <div className="alert alert-error mb-4 text-sm">
+        <div role="alert" className="alert alert-error mb-4 text-sm">
           <span>{error}</span>
           <button type="button" className="btn btn-sm" onClick={() => load()}>
             Reintentar
@@ -267,13 +267,14 @@ export default function ExpertPage() {
           <div className="col-span-1 self-start w-full">
             <div className="card bg-base-100 shadow">
               <div className="card-body gap-2 p-4 !flex-none">
-                <h3 className="font-semibold text-sm">Pendientes (HU14)</h3>
-                <ul className="menu menu-sm w-full">
+                <h2 className="font-semibold text-sm">Pendientes (HU14)</h2>
+                <ul className="menu menu-sm w-full" aria-label="Artículos pendientes de validación">
                   {pendientes.map((a) => (
                     <li key={a.articulo_id}>
                       <button
                         type="button"
                         className={selected?.articulo_id === a.articulo_id ? "active" : ""}
+                        aria-current={selected?.articulo_id === a.articulo_id ? "true" : undefined}
                         onClick={() => selectArticulo(a)}
                         disabled={busy}
                       >
@@ -301,9 +302,9 @@ export default function ExpertPage() {
                       aria-label="Título"
                     />
                   ) : (
-                    <h2 className="card-title text-base leading-snug flex-1 min-w-0">
+                    <h3 className="card-title text-base leading-snug flex-1 min-w-0">
                       {selected.titulo}
-                    </h2>
+                    </h3>
                   )}
                   <span className="badge badge-warning badge-sm shrink-0">{selected.estado}</span>
                 </div>
@@ -315,6 +316,7 @@ export default function ExpertPage() {
                     <textarea
                       className="textarea textarea-bordered textarea-sm w-full mt-1 min-h-20"
                       value={draft.sintoma}
+                      aria-label="Síntoma"
                       onChange={(e) => setDraft({ ...draft, sintoma: e.target.value })}
                       disabled={saving}
                     />
@@ -328,6 +330,7 @@ export default function ExpertPage() {
                     <textarea
                       className="textarea textarea-bordered textarea-sm w-full mt-1 min-h-20"
                       value={draft.causa}
+                      aria-label="Causa probable"
                       onChange={(e) => setDraft({ ...draft, causa: e.target.value })}
                       disabled={saving}
                     />
@@ -341,6 +344,7 @@ export default function ExpertPage() {
                     <textarea
                       className="textarea textarea-bordered textarea-sm w-full mt-1 min-h-28"
                       value={draft.solucion}
+                      aria-label="Solución"
                       onChange={(e) => setDraft({ ...draft, solucion: e.target.value })}
                       disabled={saving}
                     />
@@ -354,6 +358,7 @@ export default function ExpertPage() {
                     <input
                       className="input input-bordered input-sm w-full mt-1"
                       value={draft.aplicable_a}
+                      aria-label="Aplicable a"
                       onChange={(e) => setDraft({ ...draft, aplicable_a: e.target.value })}
                       disabled={saving}
                       placeholder="Opcional"

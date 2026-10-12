@@ -3,7 +3,7 @@
 import contextlib
 import json
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -117,12 +117,23 @@ async def enqueue_evaluacion_golden():
 
 
 @router.get("/dashboard", dependencies=[Depends(require_feature("e05_tablero_coordinador"))])
-async def get_dashboard(categoria: str | None = None):
-    """HU15 — coordinator dashboard."""
+async def get_dashboard(
+    categoria: str | None = None, desde: date | None = None, hasta: date | None = None
+):
+    """HU15 — coordinator dashboard, filtrable por categoría y rango de fechas de generación."""
+    if desde and hasta and desde > hasta:  # CA3
+        raise HTTPException(
+            status_code=422,
+            detail="Rango de fechas inválido: la fecha de inicio es posterior a la de fin.",
+        )
     settings = get_settings()
     articulos = get_store().list_all()
     if categoria:
         articulos = [a for a in articulos if categoria.lower() in a.categoria.lower()]
+    if desde:
+        articulos = [a for a in articulos if a.fecha_generacion.date() >= desde]
+    if hasta:
+        articulos = [a for a in articulos if a.fecha_generacion.date() <= hasta]
 
     por_estado = Counter(a.estado.value for a in articulos)
     por_categoria = Counter(a.categoria for a in articulos)
@@ -151,4 +162,8 @@ async def get_dashboard(categoria: str | None = None):
         },
         "tickets_procesados": total_tickets,
         "filtro_categoria": categoria,
+        "filtro_desde": desde.isoformat() if desde else None,
+        "filtro_hasta": hasta.isoformat() if hasta else None,
+        # CA2: la UI muestra un estado vacío explícito en vez de ceros o un gráfico en blanco.
+        "sin_datos": not articulos,
     }

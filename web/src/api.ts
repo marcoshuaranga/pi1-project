@@ -385,7 +385,15 @@ export const api = {
 
   getFeatureFlags: () => request<Partial<FeatureFlags>>("/config/features"),
 
-  getDashboard: () => request<Record<string, unknown>>("/metrics/dashboard"),
+  /** `query` ya viene con su `?` (ver `queryDeFiltros` en lib/tablero.ts). */
+  getDashboard: (query = "") => request<Record<string, unknown>>(`/metrics/dashboard${query}`),
+
+  /** HU17: cambia el estado de un artículo; el servidor valida la transición (409 si no es válida). */
+  cambiarEstadoArticulo: (id: string, estado: string) =>
+    request<KedbArticulo>(`/kedb/articulos/${id}/ciclo-vida?estado=${encodeURIComponent(estado)}`, {
+      method: "PATCH",
+      timeoutMs: 60_000,
+    }),
 
   getEvaluacion: () => request<Record<string, unknown>>("/metrics/evaluacion"),
 

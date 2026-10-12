@@ -25,14 +25,18 @@ function navClass(isActive: boolean) {
   return `app-nav-link ${isActive ? "app-nav-link-active" : ""}`;
 }
 
+const SIDEBAR_AUTO_COLLAPSE_PX = 1100;
+
 type Theme = "light" | "dark";
 const THEME_KEY = "oitsi-theme";
 
 export default function App() {
   const [pipelineBusy, setPipelineBusy] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => localStorage.getItem("oitsi-sidebar-collapsed") === "true"
-  );
+  // Sin preferencia guardada, en pantallas medianas (901–1100px) el menú arranca colapsado para dar espacio al contenido.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem("oitsi-sidebar-collapsed");
+    return saved === null ? window.innerWidth < SIDEBAR_AUTO_COLLAPSE_PX : saved === "true";
+  });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [flags, setFlags] = useState<FeatureFlags>(DEFAULT_FLAGS);
   const [theme, setTheme] = useState<Theme>(() => {
@@ -122,6 +126,9 @@ export default function App() {
     <FeatureFlagsProvider flags={flags}>
     <PipelineNavContext.Provider value={value}>
       <div className={`app-shell ${sidebarCollapsed ? "app-shell-collapsed" : ""}`}>
+        <a className="skip-link" href="#contenido">
+          Saltar al contenido
+        </a>
         <button
           type="button"
           className={`app-nav-backdrop ${mobileNavOpen ? "app-nav-backdrop-visible" : ""}`}
@@ -196,7 +203,7 @@ export default function App() {
           </nav>
 
           <div className="app-sidebar-footer">
-            <button type="button" className="theme-toggle" onClick={toggleTheme}>
+            <button type="button" className="theme-toggle" onClick={toggleTheme} aria-pressed={theme === "dark"}>
               <span className="theme-toggle-icon">{theme === "light" ? "☾" : "☀"}</span>
               <span>{theme === "light" ? "Modo oscuro" : "Modo claro"}</span>
               <span className="theme-toggle-state">{theme === "light" ? "OFF" : "ON"}</span>
@@ -212,7 +219,7 @@ export default function App() {
           </div>
         </aside>
 
-        <main className="app-main">
+        <main className="app-main" id="contenido">
           <header className="app-mobile-header">
             <button
               type="button"

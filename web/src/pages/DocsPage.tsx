@@ -46,12 +46,13 @@ export default function DocsPage() {
     <div className="max-w-6xl mx-auto p-4">
       <div className="navbar page-header bg-accent text-accent-content rounded-lg mb-4 px-4 shadow">
         <div className="page-header-title">
-          <span className="text-lg font-bold">Live Docs — KEDB</span>
+          <h1 className="text-lg font-bold">Live Docs — KEDB</h1>
           <span className="badge badge-ghost">{docs.length} artículos</span>
         </div>
         <div className="page-header-actions">
           <select
             className="select select-sm select-bordered text-base-content"
+            aria-label="Filtrar documentos por estado"
             value={filtro}
             onChange={(e) => setFiltro(e.target.value as typeof filtro)}
           >
@@ -70,10 +71,14 @@ export default function DocsPage() {
         SQLite sigue siendo la fuente de verdad. Archivos en <code>data/kedb/articles/*.md</code>.
       </p>
 
-      {msg && <div className="alert alert-success mb-4 text-sm">{msg}</div>}
+      {msg && (
+        <div role="status" className="alert alert-success mb-4 text-sm">
+          {msg}
+        </div>
+      )}
 
       {loading ? (
-        <span className="loading loading-spinner" />
+        <span className="loading loading-spinner" role="status" aria-label="Cargando documentos" />
       ) : docs.length === 0 ? (
         <div className="alert">
           No hay docs publicados. Aprueba un artículo en Experto o pulsa{" "}
@@ -83,7 +88,7 @@ export default function DocsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
           <div className="card bg-base-100 shadow self-start w-full">
             <div className="card-body gap-2 p-3 !flex-none">
-              <ul className="menu menu-sm w-full">
+              <ul className="menu menu-sm w-full" aria-label="Documentos publicados">
                 {docs.map((d) => (
                   <li key={d.articulo_id}>
                     <button

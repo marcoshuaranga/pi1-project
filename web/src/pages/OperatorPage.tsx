@@ -276,7 +276,7 @@ export default function OperatorPage() {
   return (
     <div className="max-w-5xl mx-auto p-4">
       <div className="navbar page-header bg-primary text-primary-content rounded-lg mb-4 px-4 shadow">
-        <span className="text-lg font-bold">Mesa de Ayuda OITSI-MTC</span>
+        <h1 className="text-lg font-bold">Mesa de Ayuda OITSI-MTC</h1>
         <span className="ml-4 badge badge-accent">Asistente IA activo</span>
         {routeTicketId && (
           <Link to="/" className="btn btn-ghost btn-xs ml-auto text-primary-content">
@@ -318,7 +318,7 @@ export default function OperatorPage() {
       )}
 
       {statusMsg && (
-        <div className={`alert mb-4 text-sm py-2 ${loading ? "alert-warning" : "alert-info"}`}>
+        <div role="status" className={`alert mb-4 text-sm py-2 ${loading ? "alert-warning" : "alert-info"}`}>
           {loading && <span className="loading loading-spinner loading-sm" />}
           <span>{statusMsg}</span>
           {pendingTicketId && loading && (
@@ -336,6 +336,7 @@ export default function OperatorPage() {
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               placeholder="Describe el problema del usuario..."
+              aria-label="Descripción del problema del usuario"
               disabled={loading}
             />
             <button
@@ -345,7 +346,11 @@ export default function OperatorPage() {
             >
               {loading ? (resuming ? "Reanudando pipeline…" : "Procesando...") : "Enviar ticket"}
             </button>
-            {error && <p className="text-error text-sm">{error}</p>}
+            {error && (
+              <p role="alert" className="text-error text-sm">
+                {error}
+              </p>
+            )}
           </div>
         </div>
 
@@ -360,7 +365,7 @@ export default function OperatorPage() {
                 </span>
               )}
             </div>
-            <ul className="steps steps-vertical text-xs">
+            <ul className="steps steps-vertical text-xs" aria-label="Pasos del pipeline">
               {STEPS.map((step, i) => {
                 const current = loading && i === Math.min(activeStep, STEPS.length - 1);
                 return (
@@ -509,6 +514,7 @@ export default function OperatorPage() {
                 <textarea
                   className="textarea textarea-bordered textarea-sm w-full mt-1"
                   placeholder="Documentar solución no sugerida..."
+                  aria-label="Nueva solución (HU12)"
                   value={nuevaSolucion}
                   onChange={(e) => setNuevaSolucion(e.target.value)}
                 />
