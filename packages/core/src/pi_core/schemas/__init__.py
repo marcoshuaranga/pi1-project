@@ -4,7 +4,9 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
+
+from pi_core.config import get_settings
 
 
 class TicketEstado(StrEnum):
@@ -58,6 +60,17 @@ class TicketResponse(BaseModel):
     prioridad: str
     justificacion_prioridad: dict[str, float] | None = None
     soluciones: list[SolucionSugerida] = Field(default_factory=list)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def umbral_confianza(self) -> float:
+        return get_settings().umbral_confianza_baja
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def confianza_baja(self) -> bool:
+        """HU02 CA: la UI resalta la confianza sin duplicar la regla (estrictamente bajo el umbral)."""
+        return self.confianza < self.umbral_confianza
 
 
 class TicketSessionStatus(StrEnum):

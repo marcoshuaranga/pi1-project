@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Solucion } from "../api";
 import { Link } from "react-router-dom";
+import { formatPorcentaje } from "../lib/operador";
 import { STEPS, usePipelineSession } from "./usePipelineSession";
 
 const FACTOR_LABELS: Record<string, string> = {
@@ -365,8 +366,20 @@ export default function OperatorPage() {
                   <span className="badge badge-info h-auto min-h-6 whitespace-normal text-left py-1.5 px-2 leading-snug">
                     {result.categoria}
                   </span>
-                  <span className="text-xs shrink-0 pt-1">
-                    confianza {(result.confianza * 100).toFixed(0)}%
+                  <span
+                    className={
+                      result.confianza_baja
+                        ? "badge badge-warning badge-outline shrink-0 font-semibold"
+                        : "text-xs shrink-0 pt-1"
+                    }
+                    title={
+                      result.confianza_baja && result.umbral_confianza !== undefined
+                        ? `Confianza baja: por debajo del mínimo (${formatPorcentaje(result.umbral_confianza)}). Revise la categoría.`
+                        : undefined
+                    }
+                  >
+                    {result.confianza_baja && "⚠ "}confianza {formatPorcentaje(result.confianza)}
+                    {result.confianza_baja && " — baja"}
                   </span>
                 </div>
                 <div className="mt-2 flex gap-2">

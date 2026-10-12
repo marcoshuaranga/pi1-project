@@ -73,3 +73,14 @@ def test_create_ticket_returns_explicit_empty_result_when_nothing_matches(api_cl
     body = response.json()
     assert body["soluciones"] == []
     assert body["confianza"] < 0.5
+
+
+def test_create_ticket_exposes_confianza_baja_flag(api_client, monkeypatch):
+    """HU02 — la UI recibe el flag y el umbral; no duplica la regla."""
+    monkeypatch.setattr("pi_api.routers.tickets.get_orchestrator", NoHitOrchestrator)
+
+    body = api_client.post("/tickets", json={"texto": "Algo muy ambiguo"}).json()
+
+    assert body["confianza"] == 0.31
+    assert body["confianza_baja"] is True
+    assert body["umbral_confianza"] == 0.6

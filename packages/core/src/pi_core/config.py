@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     kedb_cluster_max_samples: int = 800
     kedb_cluster_fetch_batch: int = 64
     random_seed: int = 42
+    # HU02: confianza del Clasificador estrictamente por debajo de este umbral se resalta en la UI.
+    umbral_confianza_baja: float = 0.6
     redis_host: str = "redis"
     redis_port: int = 6379
     redis_db: int = 0

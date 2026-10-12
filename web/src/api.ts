@@ -14,6 +14,9 @@ export interface TicketResponse {
   ticket_id: string;
   categoria: string;
   confianza: number;
+  /** HU02: el backend decide si la confianza es baja; la UI no duplica la regla. */
+  confianza_baja?: boolean;
+  umbral_confianza?: number;
   prioridad: string;
   justificacion_prioridad?: Record<string, number>;
   soluciones: Solucion[];
