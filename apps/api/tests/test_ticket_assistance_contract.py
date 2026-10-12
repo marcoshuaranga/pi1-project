@@ -84,3 +84,36 @@ def test_create_ticket_exposes_confianza_baja_flag(api_client, monkeypatch):
     assert body["confianza"] == 0.31
     assert body["confianza_baja"] is True
     assert body["umbral_confianza"] == 0.6
+
+
+def _orquestador_con(justificacion):
+    class _Orq:
+        def process_ticket(self, texto: str) -> TicketResponse:
+            return TicketResponse(
+                ticket_id="TICKET-HU05",
+                categoria="VPN > No accede al servicio",
+                confianza=0.8,
+                prioridad="Alta",
+                justificacion_prioridad=justificacion,
+            )
+
+    return _Orq
+
+
+def test_prioridad_con_factores_los_devuelve_para_la_ui(api_client, monkeypatch):  # HU05 CA1
+    factores = {"impacto_servicio_ciudadano": 0.9, "sla_asociado": 0.7}
+    monkeypatch.setattr("pi_api.routers.tickets.get_orchestrator", _orquestador_con(factores))
+
+    body = api_client.post("/tickets", json={"texto": "VPN caída para todos"}).json()
+
+    assert body["justificacion_prioridad"] == factores
+
+
+def test_prioridad_sin_factores_llega_vacia_y_la_ui_muestra_el_mensaje(api_client, monkeypatch):  # HU05 CA2
+    """El contrato entrega `{}` (no inventa factores); web/src/lib/operador.ts `tieneFactores({})`
+    es false → la UI muestra 'No hay factores disponibles para esta prioridad'."""
+    monkeypatch.setattr("pi_api.routers.tickets.get_orchestrator", _orquestador_con({}))
+
+    body = api_client.post("/tickets", json={"texto": "Sin datos de prioridad"}).json()
+
+    assert body["justificacion_prioridad"] == {}

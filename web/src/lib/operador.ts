@@ -25,3 +25,10 @@ export function mensajeDeError(err: unknown): string {
   }
   return raw;
 }
+
+/** HU05 CA2: `{}` es truthy en JS; "sin factores" = ausente o sin claves. */
+export function tieneFactores(justificacion?: Record<string, number> | null): boolean {
+  return justificacion != null && Object.keys(justificacion).length > 0;
+}
+
+export const MENSAJE_SIN_FACTORES = "No hay factores disponibles para esta prioridad";

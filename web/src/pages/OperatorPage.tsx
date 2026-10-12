@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Solucion } from "../api";
 import { Link } from "react-router-dom";
-import { formatPorcentaje, mensajeDeError } from "../lib/operador";
+import { formatPorcentaje, MENSAJE_SIN_FACTORES, mensajeDeError, tieneFactores } from "../lib/operador";
 import { STEPS, usePipelineSession } from "./usePipelineSession";
 
 const FACTOR_LABELS: Record<string, string> = {
@@ -434,15 +434,17 @@ export default function OperatorPage() {
               <div>
                 <p className="text-xs font-semibold uppercase text-base-content/60">Prioridad (C4)</p>
                 <span className="badge badge-warning mt-1">{result.prioridad}</span>
-                {result.justificacion_prioridad && (
+                {tieneFactores(result.justificacion_prioridad) ? (
                   <ul className="mt-2 space-y-0.5 text-xs text-base-content/70">
-                    {Object.entries(result.justificacion_prioridad).map(([k, v]) => (
+                    {Object.entries(result.justificacion_prioridad ?? {}).map(([k, v]) => (
                       <li key={k} className="flex justify-between gap-4">
                         <span>{FACTOR_LABELS[k] ?? k}</span>
-                        <span className="font-mono tabular-nums">{(v * 100).toFixed(0)}%</span>
+                        <span className="font-mono tabular-nums">{formatPorcentaje(v)}</span>
                       </li>
                     ))}
                   </ul>
+                ) : (
+                  <p className="mt-2 text-xs text-base-content/60">{MENSAJE_SIN_FACTORES}</p>
                 )}
               </div>
             </div>
