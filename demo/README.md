@@ -159,7 +159,7 @@ Máximo **1–2** en la sesión. Pegar → Enviar → señalar categoría + Top-
 
 | Si preguntan…                                 | Respuesta corta                                                                                                                                                                     |
 | :-------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ¿Y si la categoría está mal?                  | En el MVP el operador ve la sugerencia + confianza. Corregir y guardar feedback es Fase 2 (HU03); hoy la decisión final sigue siendo del operador.                                  |
+| ¿Y si la categoría está mal?                  | El operador ve la sugerencia + confianza (resaltada si es baja) y puede corregir la categoría (HU03, selector del top-9); la decisión final sigue siendo del operador.                                  |
 | ¿Por qué prioridad Media?                     | El score combina impacto, recurrencia, SLA, criticidad y tipo. Este caso no dispara urgencia institucional → Media, coherente con el histórico.                                     |
 | ¿El sistema cierra el ticket solo?            | No. Solo recomienda. Cierre y resolución los hace el operador (regla de negocio).                                                                                                   |
 | ¿Por qué no generan el artículo ahora?        | Clustering + síntesis LLM se corren de antemano sobre un clúster curado (~142 Kyocera) para no depender de una corrida improvisada.                                                 |

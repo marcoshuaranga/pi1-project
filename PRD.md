@@ -55,12 +55,12 @@ demostradas en producción:
 | ID      | Título                      | Depende de  | Notas                                                                 |
 | :------ | :-------------------------- | :---------- | :-------------------------------------------------------------------- |
 | HU02 ✅ | Confianza de clasificación  | HU01        | Adelantada a MVP — hecha                                              |
-| HU03    | Corrección de categoría     | HU01        | Implementada en API; UI/flujo completo requiere validación adicional  |
-| HU05    | Justificación de prioridad  | HU04        | Implementada en la respuesta; desglose visible sigue siendo evolutivo |
+| HU03 ✅ | Corrección de categoría     | HU01        | Hecha — API y UI (select top-9); rechaza categoría inválida (422) y no registra si no cambia |
+| HU05 ✅ | Justificación de prioridad  | HU04        | Hecha — desglose de factores visible; mensaje explícito si no hay factores |
 | HU07 ✅ | Indicador de similitud      | HU06        | Adelantada a MVP — hecha                                              |
 | HU09 ✅ | Trazabilidad del artículo   | HU08b       | Adelantada a MVP — hecha (Escena 2)                                   |
-| HU11    | Utilidad del artículo       | HU06        | Implementada en API; medición de impacto es evolutiva                 |
-| HU12    | Registro de nueva solución  | HU06        | Implementada en API; flujo operativo es evolutivo                     |
+| HU11 ✅ | Utilidad del artículo       | HU06        | Hecha — re-calificar actualiza (clave ticket+artículo); medición de impacto es evolutiva |
+| HU12 ✅ | Registro de nueva solución  | HU06        | Hecha — entra como borrador KEDB candidato, valida campos y advierte posibles duplicados |
 | HU15    | Tablero del coordinador     | HU01, HU08b | Implementado en `web/`; métricas requieren evidencia etiquetada       |
 | HU16    | Búsqueda directa en la KEDB | HU06        | Implementada en API/UI                                                |
 | HU17    | Gestión del ciclo de vida   | HU10        | Implementada en API/UI                                                |
