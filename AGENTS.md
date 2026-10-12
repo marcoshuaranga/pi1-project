@@ -10,6 +10,7 @@ Guidance for AI coding agents working in this repo.
 - Prefer existing project conventions over creating new patterns: use the Spanish naming already established in ticket/KEDB code, and read the relevant ADR before changing architecture.
 - Run the smallest relevant validation for the change: `uv run pytest` for Python changes, `uv run ruff check .` for linting, and `npm run build` for frontend changes when files under `web/` are touched.
 - Feature flags ([ADR-0011](docs/adr/0011-feature-flags-funcionales.md)): a new optional, risky or unfinished HU is born behind a flag in `pi_core/feature_flags.py` (guard the endpoint with `require_feature`/`ensure_feature`, mirror it in `web/src/featureFlags.tsx`). Never flag the core (HU01/04/06/08/09/10); remove the flag once the HU is accepted.
+- Git workflow: all changes are committed and pushed directly to `main`; do not create feature/fix branches or PRs by default. If a change spans many files or may collide with a parallel session, work in a git worktree instead, but still land the result on `main`.
 - Do not commit raw data files or generated artifacts from the data pipeline unless the task explicitly requires updating demo/test fixtures.
 
 ## What this is
