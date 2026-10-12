@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     random_seed: int = 42
     # HU02: confianza del Clasificador estrictamente por debajo de este umbral se resalta en la UI.
     umbral_confianza_baja: float = 0.6
+    # HU12 CA3: similitud (1 - distancia coseno) contra un artículo KEDB validado a partir de la cual
+    # una nueva solución se advierte como posible duplicado.
+    umbral_duplicado_kedb: float = 0.85
     redis_host: str = "redis"
     redis_port: int = 6379
     redis_db: int = 0

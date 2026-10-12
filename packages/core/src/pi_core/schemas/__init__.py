@@ -153,6 +153,15 @@ class FeedbackRequest(BaseModel):
     articulo_id: str | None = None
     util: bool | None = None
     nueva_solucion: str | None = None
+    # HU12 CA3: el Operador acepta guardar aunque se advirtió un posible duplicado.
+    confirmar_duplicado: bool = False
+
+
+class ResolucionRequest(BaseModel):
+    """Alias deprecado de FeedbackRequest.nueva_solucion (POST /tickets/{id}/resolucion)."""
+
+    solucion: str | None = None
+    confirmar_duplicado: bool = False
 
 
 class CategoriaCorreccion(BaseModel):

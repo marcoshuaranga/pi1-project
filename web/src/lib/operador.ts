@@ -32,3 +32,24 @@ export function tieneFactores(justificacion?: Record<string, number> | null): bo
 }
 
 export const MENSAJE_SIN_FACTORES = "No hay factores disponibles para esta prioridad";
+
+export interface SimilarKedb {
+  articulo_o_ticket_id: string;
+  titulo?: string;
+  score: number;
+}
+
+/** HU12 CA3: la API responde 409 con `detail.codigo === "posible_duplicado"` y los artículos similares. */
+export function duplicadoDeError(err: unknown): { mensaje: string; similares: SimilarKedb[] } | null {
+  try {
+    const raw = err instanceof Error ? err.message : String(err);
+    const detail = (JSON.parse(raw) as { detail?: { codigo?: string; mensaje?: string; similares?: SimilarKedb[] } })
+      .detail;
+    if (detail && typeof detail === "object" && detail.codigo === "posible_duplicado") {
+      return { mensaje: detail.mensaje ?? "Posible duplicado.", similares: detail.similares ?? [] };
+    }
+  } catch {
+    // no era JSON
+  }
+  return null;
+}

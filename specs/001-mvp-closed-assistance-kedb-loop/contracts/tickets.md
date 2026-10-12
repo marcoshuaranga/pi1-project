@@ -38,13 +38,24 @@ identities return `404`.
 
 ## Correction, resolution, and feedback
 
+- `GET /tickets/categorias` lists the valid categories (top-9, `pi_core.constants`).
 - `PATCH /tickets/{ticket_id}/categoria` (`{"categoria": string}`) records an
-  operator category correction; requires a completed ticket, otherwise `404`.
-- `POST /tickets/{ticket_id}/resolucion` records the applied solution. The body is
-  an untyped object and an absent `solucion` key is stored as an empty string
-  (known looseness, not a guarantee).
-- `POST /tickets/{ticket_id}/feedback` (`FeedbackRequest`: `articulo_id`, `util`,
-  `nueva_solucion`) records article usefulness or a new solution.
+  operator category correction; requires a completed ticket, otherwise `404`. A
+  category outside the top-9 is rejected with `422`; the same category the ticket
+  already has returns `{"cambio": false}` and writes nothing (HU03).
+- `POST /tickets/{ticket_id}/feedback` (`FeedbackRequest`) takes either
+  `articulo_id` + `util` (HU11: one rating per `(ticket_id, articulo_id)`, a second
+  one updates it) or `nueva_solucion` (HU12). Neither → `422`.
+- HU12 `nueva_solucion`: at least 20 characters (`422` otherwise, `404` for an unknown
+  ticket). The solution is registered as a **candidate KEDB article**: a `borrador`
+  `KedbArticulo` with `tickets_fuente=[ticket_id]`, so it enters the expert review
+  queue and is never reusable or published before human approval. Before saving it is
+  compared against validated KEDB articles with the Agente RAG retriever
+  (`search_kedb`); a hit with similarity ≥ `umbral_duplicado_kedb` (0.85) returns
+  `409 {"detail": {"codigo": "posible_duplicado", "similares": [...]}}` and nothing is
+  saved until the client resends with `"confirmar_duplicado": true`.
+- `POST /tickets/{ticket_id}/resolucion` is **deprecated**: same behaviour as
+  `/feedback` with `nueva_solucion` (body `{"solucion", "confirmar_duplicado"}`).
 
 These actions preserve the ticket identity and never change KEDB lifecycle state.
 

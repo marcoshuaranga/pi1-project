@@ -372,7 +372,10 @@ export const api = {
       body: JSON.stringify({ categoria }),
     }),
 
-  feedback: (ticketId: string, data: { articulo_id?: string; util?: boolean; nueva_solucion?: string }) =>
+  feedback: (
+    ticketId: string,
+    data: { articulo_id?: string; util?: boolean; nueva_solucion?: string; confirmar_duplicado?: boolean }
+  ) =>
     request(`/tickets/${ticketId}/feedback`, {
       method: "POST",
       body: JSON.stringify(data),

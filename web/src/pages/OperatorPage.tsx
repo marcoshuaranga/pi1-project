@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { api, Solucion } from "../api";
 import { Link } from "react-router-dom";
-import { formatPorcentaje, MENSAJE_SIN_FACTORES, mensajeDeError, tieneFactores } from "../lib/operador";
+import {
+  duplicadoDeError,
+  formatPorcentaje,
+  MENSAJE_SIN_FACTORES,
+  mensajeDeError,
+  tieneFactores,
+} from "../lib/operador";
 import { STEPS, usePipelineSession } from "./usePipelineSession";
 
 const FACTOR_LABELS: Record<string, string> = {
@@ -179,6 +185,8 @@ export default function OperatorPage() {
   const [correccionMsg, setCorreccionMsg] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [nuevaSolucion, setNuevaSolucion] = useState("");
+  const [solucionError, setSolucionError] = useState<string | null>(null);
+  const [duplicado, setDuplicado] = useState<ReturnType<typeof duplicadoDeError>>(null);
   const [expandedSolucionId, setExpandedSolucionId] = useState<string | null>(null);
   const [feedbackById, setFeedbackById] = useState<Record<string, "util" | "no_util">>({});
   const [feedbackBusyId, setFeedbackBusyId] = useState<string | null>(null);
@@ -192,6 +200,8 @@ export default function OperatorPage() {
     setCorreccion("");
     setCorreccionMsg(null);
     setFeedbackMsg("");
+    setSolucionError(null);
+    setDuplicado(null);
     setNuevaSolucion("");
     setExpandedSolucionId(null);
     setFeedbackById({});
@@ -243,11 +253,22 @@ export default function OperatorPage() {
     }
   };
 
-  const handleNuevaSolucion = async () => {
-    if (!result || !nuevaSolucion) return;
-    await api.feedback(result.ticket_id, { nueva_solucion: nuevaSolucion });
-    setFeedbackMsg("Nueva solución registrada como candidata KEDB (HU12).");
-    setNuevaSolucion("");
+  const handleNuevaSolucion = async (confirmarDuplicado = false) => {
+    if (!result) return;
+    setSolucionError(null);
+    setDuplicado(null);
+    try {
+      await api.feedback(result.ticket_id, {
+        nueva_solucion: nuevaSolucion,
+        confirmar_duplicado: confirmarDuplicado,
+      });
+      setFeedbackMsg("Nueva solución registrada como candidata KEDB (HU12): queda en borrador para el Experto.");
+      setNuevaSolucion("");
+    } catch (err) {
+      const dup = duplicadoDeError(err);
+      if (dup) setDuplicado(dup);
+      else setSolucionError(mensajeDeError(err));
+    }
   };
 
   return (
@@ -488,7 +509,32 @@ export default function OperatorPage() {
                   value={nuevaSolucion}
                   onChange={(e) => setNuevaSolucion(e.target.value)}
                 />
-                <button className="btn btn-xs btn-outline mt-1" onClick={handleNuevaSolucion}>
+                {solucionError && (
+                  <p role="alert" className="text-xs text-error mt-1">
+                    {solucionError}
+                  </p>
+                )}
+                {duplicado && (
+                  <div role="alert" className="alert alert-warning text-xs py-2 mt-2 flex-col items-start gap-1">
+                    <span className="font-semibold">Posible duplicado. {duplicado.mensaje}</span>
+                    <ul className="list-disc pl-4">
+                      {duplicado.similares.map((s) => (
+                        <li key={s.articulo_o_ticket_id}>
+                          {s.titulo ?? s.articulo_o_ticket_id} — similitud {formatPorcentaje(s.score)}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="flex gap-2">
+                      <button className="btn btn-xs btn-warning" onClick={() => handleNuevaSolucion(true)}>
+                        Guardar igual
+                      </button>
+                      <button className="btn btn-xs btn-ghost" onClick={() => setDuplicado(null)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <button className="btn btn-xs btn-outline mt-1" onClick={() => handleNuevaSolucion()}>
                   Registrar
                 </button>
               </div>
