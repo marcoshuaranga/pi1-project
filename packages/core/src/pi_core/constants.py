@@ -26,6 +26,7 @@ TOP9_PATTERNS: list[tuple[str, str]] = [
     # Más específicos primero: normalize_category devuelve la primera coincidencia, y
     # "Cuenta de usuario" está contenido en las tres subcategorías de cuenta.
     ("Bloqueo", TOP9_CATEGORIES[6]),
+    ("Cuenta de usuario bloqueada", TOP9_CATEGORIES[6]),  # texto real del export GLPI
     ("Vigencia", TOP9_CATEGORIES[7]),
     ("Cuenta de usuario", TOP9_CATEGORIES[5]),
     ("Alta", TOP9_CATEGORIES[5]),

@@ -33,3 +33,15 @@ def test_normalize_category_cuenta_de_usuario_subcategorias():
     assert normalize_category("Cuenta de usuario > Bloqueo") == "Cuenta de usuario > Bloqueo"
     assert normalize_category("Cuenta de usuario > Vigencia") == "Cuenta de usuario > Vigencia"
     assert normalize_category("Cuenta de usuario") == "Cuenta de usuario > Alta"
+
+
+def test_normalize_category_textos_reales_del_export_glpi():
+    assert normalize_category("Accesos y Permisos > Cuenta de usuario > Cuenta de usuario bloqueada") == (
+        "Cuenta de usuario > Bloqueo"
+    )
+    assert normalize_category("Accesos y Permisos > Cuenta de usuario > Ampliar vigencia según O/S") == (
+        "Cuenta de usuario > Vigencia"
+    )
+    assert normalize_category("Accesos y Permisos > Cuenta de usuario > Alta de cuenta de usuario") == (
+        "Cuenta de usuario > Alta"
+    )
