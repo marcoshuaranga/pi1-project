@@ -87,6 +87,26 @@ class KedbStore:
                 )
                 """
             )
+            # HU11 CA2: una calificación de utilidad por (ticket, artículo); el operador no tiene
+            # identidad en el modelo, así que la clave es el par. Bases previas pueden traer
+            # duplicados: se conserva la más reciente antes de crear el índice.
+            conn.execute(
+                """
+                DELETE FROM ticket_feedback
+                WHERE articulo_id IS NOT NULL AND util IS NOT NULL
+                  AND id NOT IN (
+                    SELECT MAX(id) FROM ticket_feedback
+                    WHERE articulo_id IS NOT NULL AND util IS NOT NULL
+                    GROUP BY ticket_id, articulo_id)
+                """
+            )
+            conn.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_ticket_feedback_utilidad
+                ON ticket_feedback (ticket_id, articulo_id)
+                WHERE articulo_id IS NOT NULL AND util IS NOT NULL
+                """
+            )
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS categoria_correcciones (
@@ -251,12 +271,18 @@ class KedbStore:
         util: bool | None = None,
         nueva_solucion: str | None = None,
     ) -> None:
+        es_utilidad = articulo_id is not None and util is not None
+        # Solo la calificación de utilidad (HU11) es upsert; nueva_solucion (HU12) siempre inserta.
+        upsert = (
+            " ON CONFLICT (ticket_id, articulo_id) WHERE articulo_id IS NOT NULL AND util IS NOT NULL"
+            " DO UPDATE SET util = excluded.util, created_at = excluded.created_at"
+            if es_utilidad
+            else ""
+        )
         with self._conn() as conn:
             conn.execute(
-                """
-                INSERT INTO ticket_feedback (ticket_id, articulo_id, util, nueva_solucion, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
+                "INSERT INTO ticket_feedback (ticket_id, articulo_id, util, nueva_solucion, created_at)"
+                " VALUES (?, ?, ?, ?, ?)" + upsert,
                 (
                     ticket_id,
                     articulo_id,

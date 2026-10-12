@@ -32,7 +32,6 @@ function SolucionCard({
   const texto = solucion.solucion?.trim() ?? "";
   const preview =
     texto.length > PREVIEW_CHARS ? `${texto.slice(0, PREVIEW_CHARS).trimEnd()}…` : texto;
-  const voted = feedbackState !== null;
 
   return (
     <div
@@ -124,10 +123,10 @@ function SolucionCard({
           className={`btn btn-xs ${
             feedbackState === "util" ? "btn-success" : "btn-outline btn-success"
           }`}
-          disabled={feedbackBusy || voted}
+          disabled={feedbackBusy || feedbackState === "util"}
           onClick={() => onFeedback(true)}
         >
-          {feedbackBusy && !voted ? (
+          {feedbackBusy ? (
             <span className="loading loading-spinner loading-xs" />
           ) : null}
           Útil (HU11)
@@ -137,7 +136,7 @@ function SolucionCard({
           className={`btn btn-xs ${
             feedbackState === "no_util" ? "btn-error" : "btn-ghost"
           }`}
-          disabled={feedbackBusy || voted}
+          disabled={feedbackBusy || feedbackState === "no_util"}
           onClick={() => onFeedback(false)}
         >
           No útil
@@ -221,7 +220,9 @@ export default function OperatorPage() {
   }, []);
 
   const handleFeedback = async (articuloId: string, util: boolean) => {
-    if (!result || feedbackById[articuloId] || feedbackBusyId) return;
+    // HU11 CA2: se puede re-calificar (cambia el voto); solo se ignora repetir el mismo.
+    const nuevo = util ? "util" : "no_util";
+    if (!result || feedbackById[articuloId] === nuevo || feedbackBusyId) return;
     setFeedbackBusyId(articuloId);
     setFeedbackMsg("");
     try {
