@@ -93,7 +93,12 @@ textarea {
 
 .app-sidebar {
   width: 250px;
-  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -460,6 +465,7 @@ textarea {
     top: 0;
     bottom: 0;
     left: 0;
+    height: auto;
     display: flex;
     width: min(290px, 86vw);
     transform: translateX(-105%);
