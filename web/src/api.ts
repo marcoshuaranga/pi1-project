@@ -364,8 +364,10 @@ export const api = {
   searchKedb: (q: string) =>
     request<{ query: string; results: Solucion[] }>(`/kedb/buscar?q=${encodeURIComponent(q)}`),
 
+  categorias: () => request<string[]>("/tickets/categorias"),
+
   correctCategoria: (ticketId: string, categoria: string) =>
-    request(`/tickets/${ticketId}/categoria`, {
+    request<{ ticket_id: string; categoria: string; cambio: boolean }>(`/tickets/${ticketId}/categoria`, {
       method: "PATCH",
       body: JSON.stringify({ categoria }),
     }),

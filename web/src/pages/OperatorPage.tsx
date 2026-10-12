@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Solucion } from "../api";
 import { Link } from "react-router-dom";
-import { formatPorcentaje } from "../lib/operador";
+import { formatPorcentaje, mensajeDeError } from "../lib/operador";
 import { STEPS, usePipelineSession } from "./usePipelineSession";
 
 const FACTOR_LABELS: Record<string, string> = {
@@ -176,6 +176,8 @@ export default function OperatorPage() {
   // Review-only UI: annotating/correcting a result once the pipeline session
   // has produced one. Independent of how that result was obtained.
   const [correccion, setCorreccion] = useState("");
+  const [categorias, setCategorias] = useState<string[]>([]);
+  const [correccionMsg, setCorreccionMsg] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [nuevaSolucion, setNuevaSolucion] = useState("");
   const [expandedSolucionId, setExpandedSolucionId] = useState<string | null>(null);
@@ -189,6 +191,7 @@ export default function OperatorPage() {
   // setResult (same ticket, new object) doesn't wipe feedback in progress.
   useEffect(() => {
     setCorreccion("");
+    setCorreccionMsg(null);
     setFeedbackMsg("");
     setNuevaSolucion("");
     setExpandedSolucionId(null);
@@ -198,10 +201,24 @@ export default function OperatorPage() {
 
   const handleCorreccion = async () => {
     if (!result || !correccion) return;
-    await api.correctCategoria(result.ticket_id, correccion);
-    setResult({ ...result, categoria: correccion });
-    setCorreccion("");
+    setCorreccionMsg(null);
+    try {
+      const r = await api.correctCategoria(result.ticket_id, correccion);
+      if (r.cambio) {
+        setResult({ ...result, categoria: correccion });
+        setCorreccionMsg({ tipo: "ok", texto: "Categoría corregida." });
+      } else {
+        setCorreccionMsg({ tipo: "ok", texto: "Sin cambios: ya es la categoría sugerida." });
+      }
+      setCorreccion("");
+    } catch (err) {
+      setCorreccionMsg({ tipo: "error", texto: mensajeDeError(err) });
+    }
   };
+
+  useEffect(() => {
+    api.categorias().then(setCategorias).catch(() => setCategorias([]));
+  }, []);
 
   const handleFeedback = async (articuloId: string, util: boolean) => {
     if (!result || feedbackById[articuloId] || feedbackBusyId) return;
@@ -383,16 +400,35 @@ export default function OperatorPage() {
                   </span>
                 </div>
                 <div className="mt-2 flex gap-2">
-                  <input
-                    className="input input-bordered input-sm flex-1"
-                    placeholder="Corregir categoría (HU03)"
+                  <select
+                    className="select select-bordered select-sm flex-1 min-w-0"
+                    aria-label="Corregir categoría (HU03)"
                     value={correccion}
                     onChange={(e) => setCorreccion(e.target.value)}
-                  />
-                  <button className="btn btn-sm btn-outline shrink-0" onClick={handleCorreccion}>
+                  >
+                    <option value="">Corregir categoría (HU03)…</option>
+                    {categorias.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn btn-sm btn-outline shrink-0"
+                    onClick={handleCorreccion}
+                    disabled={!correccion}
+                  >
                     Corregir
                   </button>
                 </div>
+                {correccionMsg && (
+                  <p
+                    role="status"
+                    className={`text-xs mt-1 ${correccionMsg.tipo === "error" ? "text-error" : "text-success"}`}
+                  >
+                    {correccionMsg.texto}
+                  </p>
+                )}
               </div>
 
               <div>
