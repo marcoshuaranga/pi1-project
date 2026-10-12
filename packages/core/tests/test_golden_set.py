@@ -226,3 +226,45 @@ def test_score_and_merge_applies_persisted_arbitration(tmp_path):
     (tmp_path / "golden_arbitraje.json").write_text(json.dumps({disagreement_id: "inventada"}), encoding="utf-8")
     with pytest.raises(ValueError, match="categorías inválidas"):
         score_and_merge(tmp_path)
+
+
+def test_run_golden_evaluation_mide_recall_semantico_sin_contar_el_propio_ticket(tmp_path):
+    from pi_core.evaluation.metrics import EvaluationFramework
+    from pi_core.schemas import SolucionSugerida
+
+    def sol(i, cat):
+        return SolucionSugerida(articulo_o_ticket_id=i, score=0.9, tipo="ticket", categoria=cat)
+
+    golden = [
+        {"ticket_id": "A", "categoria_gold": CAT_A},
+        {"ticket_id": "B", "categoria_gold": CAT_B},
+    ]
+    tickets = [{"ticket_id": "A", "titulo_anon": "ta"}, {"ticket_id": "B", "titulo_anon": "tb"}]
+    (tmp_path / "golden_set_sample.json").write_text(json.dumps(golden), encoding="utf-8")
+    (tmp_path / "tickets_eval.json").write_text(json.dumps(tickets), encoding="utf-8")
+
+    class FakeRag:
+        top_k = 5
+
+        def retrieve(self, texto, categoria=None):
+            assert self.top_k == 6  # pide uno extra para poder descartar el propio ticket
+            if texto == "ta":  # solo el propio ticket es de su categoría -> sin acierto semántico
+                return [sol("A", CAT_A), sol("x", CAT_B), sol("y", CAT_B)]
+            return [sol("B", CAT_B), sol("z", CAT_B), sol("w", CAT_A)]  # z comparte categoría
+
+    class FakeClassifier:
+        def classify(self, texto):
+            return {"categoria": CAT_A if texto == "ta" else CAT_B}
+
+    ev = EvaluationFramework.__new__(EvaluationFramework)
+    ev.processed = tmp_path
+    ev.rag = FakeRag()
+    ev.classifier = FakeClassifier()
+
+    result = ev.run_golden_evaluation()
+
+    assert result["muestra"] == 2
+    assert result["recall_at_5"] == 1.0  # ambos aparecen en su propio top-5 (métrica por ID)
+    assert result["recall_at_5_categoria"] == 0.5
+    assert result["precision_at_5_categoria"] == 0.25  # A: 0/2, B: 1/2
+    assert ev.rag.top_k == 5  # se restaura

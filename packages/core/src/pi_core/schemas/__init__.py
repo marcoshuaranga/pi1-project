@@ -51,6 +51,8 @@ class SolucionSugerida(BaseModel):
     tipo: str  # "ticket" | "kedb"
     titulo: str | None = None
     solucion: str | None = None
+    # Solo para evaluación interna: no forma parte del contrato REST.
+    categoria: str | None = Field(default=None, exclude=True)
 
 
 class TicketResponse(BaseModel):
@@ -171,6 +173,8 @@ class CategoriaCorreccion(BaseModel):
 class MetricasEvaluacion(BaseModel):
     f1_macro: float
     recall_at_5: float
+    # Recall@5 semántico por categoría (sin contar el propio ticket); solo lo calcula el golden set.
+    recall_at_5_categoria: float | None = None
     kappa: float | None = None
     fecha_calculo: datetime
     muestra_tickets: int

@@ -6,9 +6,10 @@ from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from pi_api.deps import get_kedb_store as get_store
+from pi_api.deps import require_feature
 from pi_core.config import get_settings
 from pi_core.schemas import MetricasEvaluacion
 
@@ -37,6 +38,7 @@ def _cached_evaluacion(cached: Path, dataset: str) -> MetricasEvaluacion:
     return MetricasEvaluacion(
         f1_macro=data.get("f1_macro", 0.0),
         recall_at_5=data.get("recall_at_5", 0.0),
+        recall_at_5_categoria=data.get("recall_at_5_categoria"),
         kappa=data.get("kappa"),
         fecha_calculo=fecha_calculo,
         muestra_tickets=data.get("muestra", 0),
@@ -113,7 +115,7 @@ async def enqueue_evaluacion_golden():
     )
 
 
-@router.get("/dashboard")
+@router.get("/dashboard", dependencies=[Depends(require_feature("e05_tablero_coordinador"))])
 async def get_dashboard(categoria: str | None = None):
     """HU15 — coordinator dashboard."""
     settings = get_settings()

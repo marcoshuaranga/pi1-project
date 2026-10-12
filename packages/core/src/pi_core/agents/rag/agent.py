@@ -72,6 +72,7 @@ class RAGAgent:
                     tipo=tipo,
                     titulo=meta.get("titulo"),
                     solucion=meta.get("solucion"),
+                    categoria=meta.get("categoria"),
                 )
             )
         return out
