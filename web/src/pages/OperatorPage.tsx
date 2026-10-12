@@ -8,6 +8,7 @@ import {
   mensajeDeError,
   tieneFactores,
 } from "../lib/operador";
+import { useFeature } from "../featureFlags";
 import { STEPS, usePipelineSession } from "./usePipelineSession";
 
 const FACTOR_LABELS: Record<string, string> = {
@@ -184,6 +185,7 @@ export default function OperatorPage() {
   const [categorias, setCategorias] = useState<string[]>([]);
   const [correccionMsg, setCorreccionMsg] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState("");
+  const nuevaSolucionOn = useFeature("e04_nueva_solucion"); // HU12
   const [nuevaSolucion, setNuevaSolucion] = useState("");
   const [solucionError, setSolucionError] = useState<string | null>(null);
   const [duplicado, setDuplicado] = useState<ReturnType<typeof duplicadoDeError>>(null);
@@ -501,6 +503,7 @@ export default function OperatorPage() {
                   <span>{feedbackMsg}</span>
                 </div>
               )}
+              {nuevaSolucionOn && (
               <div className="mt-2 border-t pt-3">
                 <p className="text-xs font-semibold">Nueva solución (HU12)</p>
                 <textarea
@@ -538,6 +541,7 @@ export default function OperatorPage() {
                   Registrar
                 </button>
               </div>
+              )}
             </div>
           </div>
         </div>

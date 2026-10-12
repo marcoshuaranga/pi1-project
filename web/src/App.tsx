@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useBlocker, useLocation } from "react-router-dom";
+import { api } from "./api";
+import { DEFAULT_FLAGS, FeatureFlagsProvider, type FeatureFlags } from "./featureFlags";
 
 type PipelineNavContextValue = {
   pipelineBusy: boolean;
@@ -32,6 +34,7 @@ export default function App() {
     () => localStorage.getItem("oitsi-sidebar-collapsed") === "true"
   );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [flags, setFlags] = useState<FeatureFlags>(DEFAULT_FLAGS);
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem(THEME_KEY);
     return saved === "dark" ? "dark" : "light";
@@ -90,7 +93,23 @@ export default function App() {
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme((current) => (current === "light" ? "dark" : "light"));
+  // ADR-0011: el servidor decide qué capacidades se muestran; si falla, rigen los defaults (todo ON).
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getFeatureFlags()
+      .then((remote) => {
+        if (!cancelled) setFlags({ ...DEFAULT_FLAGS, ...remote });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const dashboardEnabled =
+    flags.e05_tablero_coordinador || flags.e02_busqueda_kedb || flags.e03_ciclo_vida;
+
+  const toggleTheme =() => setTheme((current) => (current === "light" ? "dark" : "light"));
   const toggleSidebar = () => {
     setSidebarCollapsed((current) => {
       const next = !current;
@@ -100,6 +119,7 @@ export default function App() {
   };
 
   return (
+    <FeatureFlagsProvider flags={flags}>
     <PipelineNavContext.Provider value={value}>
       <div className={`app-shell ${sidebarCollapsed ? "app-shell-collapsed" : ""}`}>
         <button
@@ -166,11 +186,13 @@ export default function App() {
               <span>Live Docs</span>
               <span className="app-nav-arrow">›</span>
             </NavLink>
-            <NavLink to="/dashboard" className={({ isActive }) => navClass(isActive)} onClick={() => setMobileNavOpen(false)}>
-              <span className="app-nav-icon">◒</span>
-              <span>Coordinador</span>
-              <span className="app-nav-arrow">›</span>
-            </NavLink>
+            {dashboardEnabled && (
+              <NavLink to="/dashboard" className={({ isActive }) => navClass(isActive)} onClick={() => setMobileNavOpen(false)}>
+                <span className="app-nav-icon">◒</span>
+                <span>Coordinador</span>
+                <span className="app-nav-arrow">›</span>
+              </NavLink>
+            )}
           </nav>
 
           <div className="app-sidebar-footer">
@@ -220,5 +242,6 @@ export default function App() {
         </main>
       </div>
     </PipelineNavContext.Provider>
+    </FeatureFlagsProvider>
   );
 }

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from pi_api.routers import config as config_router
 from pi_api.routers import jobs, kedb, metrics, tickets
 from pi_api.ws import pipeline as ws_pipeline
 from pi_core.config import get_settings
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(kedb.router)
     app.include_router(metrics.router)
     app.include_router(jobs.router)
+    app.include_router(config_router.router)
     app.include_router(ws_pipeline.router)
 
     @app.get("/health")

@@ -14,6 +14,7 @@ This folder contains the project’s design decisions and technical trade-offs.
 - [0008-regex-plus-spacy-ner-anonymization.md](0008-regex-plus-spacy-ner-anonymization.md)
 - [0009-sync-ticket-pipeline-async-kedb-jobs.md](0009-sync-ticket-pipeline-async-kedb-jobs.md)
 - [0010-uv-workspace-monorepo-split.md](0010-uv-workspace-monorepo-split.md)
+- [0011-feature-flags-funcionales.md](0011-feature-flags-funcionales.md)
 
 ## When to read these
 

@@ -4,10 +4,11 @@ import asyncio
 import contextlib
 from functools import lru_cache
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from pi_api.deps import get_kedb_store as get_store
+from pi_api.deps import require_feature
 from pi_core.agents.rag.agent import RAGAgent
 from pi_core.queue import get_redis_pool
 from pi_core.schemas import JobEnqueueResponse, KedbArticulo, KedbArticuloUpdate, KedbEstado
@@ -26,7 +27,12 @@ def get_publisher() -> KedbPublisher:
     return KedbPublisher(get_store(), get_rag())
 
 
-@router.post("/generate", response_model=JobEnqueueResponse, status_code=202)
+@router.post(
+    "/generate",
+    response_model=JobEnqueueResponse,
+    status_code=202,
+    dependencies=[Depends(require_feature("e03_generacion_kedb"))],
+)
 async def generate_kedb(max_articles: int = 50, keyword: str | None = None):
     """HU08a + HU08b — enqueue clustering + LLM synthesis on the ARQ worker."""
     redis = await get_redis_pool()
@@ -84,7 +90,11 @@ async def update_articulo(articulo_id: str, body: KedbArticuloUpdate):
     return articulo
 
 
-@router.patch("/articulos/{articulo_id}/ciclo-vida", response_model=KedbArticulo)
+@router.patch(
+    "/articulos/{articulo_id}/ciclo-vida",
+    response_model=KedbArticulo,
+    dependencies=[Depends(require_feature("e03_ciclo_vida"))],
+)
 async def ciclo_vida(articulo_id: str, estado: KedbEstado = KedbEstado.ARCHIVADO):
     """HU17 — lifecycle state change."""
     return await update_articulo(articulo_id, KedbArticuloUpdate(estado=estado))
@@ -153,7 +163,7 @@ async def get_doc(articulo_id: str):
     return {"articulo_id": articulo_id, "markdown": content}
 
 
-@router.get("/buscar")
+@router.get("/buscar", dependencies=[Depends(require_feature("e02_busqueda_kedb"))])
 async def buscar_kedb(q: str = Query(..., min_length=2)):
     """HU16 — semantic search on KEDB."""
     results = await asyncio.to_thread(get_rag().search_kedb, q)

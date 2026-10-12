@@ -4,7 +4,7 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException
 
-from pi_api.deps import get_kedb_store, get_orchestrator
+from pi_api.deps import ensure_feature, get_kedb_store, get_orchestrator
 from pi_api.state import get_ticket, save_ticket
 from pi_core.constants import TOP9_CATEGORIES
 from pi_core.schemas import (
@@ -69,6 +69,7 @@ async def _registrar_nueva_solucion(
     ticket_id: str, solucion: str | None, confirmar_duplicado: bool
 ) -> dict:
     """HU12 — registra la solución como candidata KEDB (borrador); ver services/solucion_candidata."""
+    ensure_feature("e04_nueva_solucion")
     ticket = get_ticket(ticket_id)
     if not ticket or not ticket.result:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")

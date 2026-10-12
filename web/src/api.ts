@@ -2,6 +2,8 @@
 // Override with VITE_API_URL only for local Vite dev (e.g. http://localhost:8000).
 const API_URL = import.meta.env.VITE_API_URL ?? "/api";
 
+import type { FeatureFlags } from "./featureFlags";
+
 export interface Solucion {
   articulo_o_ticket_id: string;
   score: number;
@@ -380,6 +382,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  getFeatureFlags: () => request<Partial<FeatureFlags>>("/config/features"),
 
   getDashboard: () => request<Record<string, unknown>>("/metrics/dashboard"),
 

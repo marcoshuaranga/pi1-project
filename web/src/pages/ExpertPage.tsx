@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, KedbArticulo } from "../api";
+import { useFeature } from "../featureFlags";
 import { useJobRun } from "../useJobRun";
 
 type EditDraft = {
@@ -21,6 +22,7 @@ function draftFromArticulo(a: KedbArticulo): EditDraft {
 }
 
 export default function ExpertPage() {
+  const generacionOn = useFeature("e03_generacion_kedb"); // HU08
   const [pendientes, setPendientes] = useState<KedbArticulo[]>([]);
   const [selected, setSelected] = useState<KedbArticulo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -200,23 +202,25 @@ export default function ExpertPage() {
       <div className="navbar page-header bg-secondary text-secondary-content rounded-lg mb-4 px-4 shadow flex-wrap gap-2">
         <span className="text-lg font-bold">Validación KEDB — Experto Técnico</span>
         <span className="badge badge-warning">{pendientes.length} pendientes</span>
-        <div className="ml-auto">
-          <button
-            type="button"
-            className="btn btn-sm btn-primary"
-            onClick={handleGenerate}
-            disabled={busy}
-          >
-            {jobRun.busy ? (
-              <>
-                <span className="loading loading-spinner loading-xs" />
-                Generando…
-              </>
-            ) : (
-              "Generar borradores (worker)"
-            )}
-          </button>
-        </div>
+        {generacionOn && (
+          <div className="ml-auto">
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={handleGenerate}
+              disabled={busy}
+            >
+              {jobRun.busy ? (
+                <>
+                  <span className="loading loading-spinner loading-xs" />
+                  Generando…
+                </>
+              ) : (
+                "Generar borradores (worker)"
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {jobRun.status && (

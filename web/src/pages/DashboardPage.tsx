@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { useFeature } from "../featureFlags";
 import { useJobRun } from "../useJobRun";
 
 export default function DashboardPage() {
+  const tableroOn = useFeature("e05_tablero_coordinador"); // HU15
+  const busquedaOn = useFeature("e02_busqueda_kedb"); // HU16
+  const cicloVidaOn = useFeature("e03_ciclo_vida"); // HU17
   const [dashboard, setDashboard] = useState<Record<string, unknown> | null>(null);
   const [evaluacion, setEvaluacion] = useState<Record<string, unknown> | null>(null);
   const [searchQ, setSearchQ] = useState("");
@@ -13,9 +17,9 @@ export default function DashboardPage() {
 
   const refresh = async () => {
     const [dash, evalMetrics, arts] = await Promise.all([
-      api.getDashboard().catch(() => null),
-      api.getEvaluacion().catch(() => null),
-      api.listArticulos().catch(() => []),
+      tableroOn ? api.getDashboard().catch(() => null) : null,
+      tableroOn ? api.getEvaluacion().catch(() => null) : null,
+      cicloVidaOn ? api.listArticulos().catch(() => []) : [],
     ]);
     if (dash) setDashboard(dash);
     if (evalMetrics) setEvaluacion(evalMetrics);
@@ -25,7 +29,8 @@ export default function DashboardPage() {
   useEffect(() => {
     refresh();
     return () => jobRun.cancel();
-  }, []);
+    // Se recarga cuando llegan los flags del servidor (ADR-0011).
+  }, [tableroOn, cicloVidaOn]);
 
   const handleRecompute = async () => {
     setError("");
@@ -51,7 +56,9 @@ export default function DashboardPage() {
   return (
     <div className="max-w-5xl mx-auto p-4">
       <div className="navbar page-header bg-neutral text-neutral-content rounded-lg mb-4 px-4 shadow">
-        <span className="text-lg font-bold">Tablero del Coordinador (HU15)</span>
+        <span className="text-lg font-bold">
+          {tableroOn ? "Tablero del Coordinador (HU15)" : "Gestión de conocimiento KEDB"}
+        </span>
       </div>
 
       {jobRun.status && (
@@ -65,6 +72,8 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {tableroOn && (
+      <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 items-start">
         <div className="stat bg-base-100 shadow rounded-lg self-start">
           <div className="stat-title">Artículos KEDB</div>
@@ -131,7 +140,10 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+      </>
+      )}
 
+      {busquedaOn && (
       <div className="card bg-base-100 shadow mb-4">
         <div className="card-body gap-3 p-4 !flex-none">
           <h3 className="card-title text-sm">Búsqueda directa KEDB (HU16)</h3>
@@ -165,7 +177,9 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+      )}
 
+      {cicloVidaOn && (
       <div className="card bg-base-100 shadow">
         <div className="card-body gap-3 p-4 !flex-none">
           <h3 className="card-title text-sm">Gestión ciclo de vida (HU17)</h3>
@@ -206,6 +220,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
