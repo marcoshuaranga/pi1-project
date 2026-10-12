@@ -91,6 +91,19 @@ class EvaluationFramework:
         sin_propio = [s for s in todas if s.articulo_o_ticket_id != ticket_id][:k]
         return todas[:k], sin_propio
 
+    def _load_relevance_experto(self) -> dict:
+        """Recall@5 con juicio experto, si ya se calculó (scripts/build_relevance_set.py score)."""
+        path = self.processed / "relevance_results.json"
+        if not path.exists():
+            return {}
+        r = json.loads(path.read_text(encoding="utf-8"))
+        return {
+            "recall_at_5_experto": r["recall_at_5_experto"],
+            "precision_at_5_experto": r["precision_at_5_experto"],
+            "recall_at_5_experto_n": r["n_tickets"],
+            "kappa_relevancia": r["kappa_relevancia"],
+        }
+
     def run_golden_evaluation(self) -> dict:
         """C9 sobre golden_set_sample.json (200 tickets, doble etiquetado) en vez de
         la muestra aleatoria de tickets_eval.json — ver packages/core/src/pi_core/evaluation/golden_set.py.
@@ -168,9 +181,12 @@ class EvaluationFramework:
         kappa_path = self.processed / "golden_set_kappa.json"
         kappa = json.loads(kappa_path.read_text(encoding="utf-8")).get("kappa") if kappa_path.exists() else None
 
+        experto = self._load_relevance_experto()
+
         result = {
             "f1_macro": round(f1, 4),
             "recall_at_5": round(recall, 4),
+            **experto,
             "recall_at_5_categoria": round(recall_cat, 4),
             "precision_at_5_categoria": round(precision_cat, 4),
             "muestra": n,

@@ -39,6 +39,7 @@ def _cached_evaluacion(cached: Path, dataset: str) -> MetricasEvaluacion:
         f1_macro=data.get("f1_macro", 0.0),
         recall_at_5=data.get("recall_at_5", 0.0),
         recall_at_5_categoria=data.get("recall_at_5_categoria"),
+        recall_at_5_experto=data.get("recall_at_5_experto"),
         kappa=data.get("kappa"),
         fecha_calculo=fecha_calculo,
         muestra_tickets=data.get("muestra", 0),

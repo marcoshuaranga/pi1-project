@@ -175,6 +175,8 @@ class MetricasEvaluacion(BaseModel):
     recall_at_5: float
     # Recall@5 semántico por categoría (sin contar el propio ticket); solo lo calcula el golden set.
     recall_at_5_categoria: float | None = None
+    # Recall@5 con juicio de dos expertos sobre una muestra (pi_core.evaluation.relevance).
+    recall_at_5_experto: float | None = None
     kappa: float | None = None
     fecha_calculo: datetime
     muestra_tickets: int
