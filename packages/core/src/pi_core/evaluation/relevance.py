@@ -38,9 +38,9 @@ _TEXT_MAX = 1500
 
 
 class _Retriever(Protocol):
-    top_k: int
-
-    def retrieve(self, texto: str, categoria: str | None = None) -> list[Any]: ...
+    def retrieve(
+        self, texto: str, categoria: str | None = None, excluir_ids: set[str] | None = None
+    ) -> list[Any]: ...
 
 
 def build_relevance_pool(
@@ -54,40 +54,36 @@ def build_relevance_pool(
     # Primero los de doble anotación: los mismos que ya conocen los dos expertos.
     elegibles.sort(key=lambda e: (not e["doble_anotacion"], e["ticket_id"]))
 
-    previo, rag.top_k = rag.top_k, k + 1
-    try:
-        items: list[dict[str, Any]] = []
-        for e in elegibles:
-            if len(items) >= n:
-                break
-            t = evals[e["ticket_id"]]
-            try:
-                candidatas = [s for s in rag.retrieve(t["titulo_anon"]) if s.articulo_o_ticket_id != e["ticket_id"]][:k]
-            except Exception:
-                continue
-            if len(candidatas) < k:
-                continue
-            items.append(
-                {
-                    "ticket_id": e["ticket_id"],
-                    "titulo": t["titulo_anon"],
-                    "solucion_real": (t.get("solucion_anon") or "")[:_TEXT_MAX],
-                    "candidatas": [
-                        {
-                            "item_id": f"{e['ticket_id']}#{rank}",
-                            "rank": rank,
-                            "id": s.articulo_o_ticket_id,
-                            "tipo": s.tipo,
-                            "titulo": s.titulo or "",
-                            "solucion": (s.solucion or "")[:_TEXT_MAX],
-                            "score": s.score,
-                        }
-                        for rank, s in enumerate(candidatas, start=1)
-                    ],
-                }
-            )
-    finally:
-        rag.top_k = previo
+    items: list[dict[str, Any]] = []
+    for e in elegibles:
+        if len(items) >= n:
+            break
+        t = evals[e["ticket_id"]]
+        try:
+            candidatas = rag.retrieve(t["titulo_anon"], excluir_ids={e["ticket_id"]})[:k]
+        except Exception:
+            continue
+        if len(candidatas) < k:
+            continue
+        items.append(
+            {
+                "ticket_id": e["ticket_id"],
+                "titulo": t["titulo_anon"],
+                "solucion_real": (t.get("solucion_anon") or "")[:_TEXT_MAX],
+                "candidatas": [
+                    {
+                        "item_id": f"{e['ticket_id']}#{rank}",
+                        "rank": rank,
+                        "id": s.articulo_o_ticket_id,
+                        "tipo": s.tipo,
+                        "titulo": s.titulo or "",
+                        "solucion": (s.solucion or "")[:_TEXT_MAX],
+                        "score": s.score,
+                    }
+                    for rank, s in enumerate(candidatas, start=1)
+                ],
+            }
+        )
 
     (processed / POOL_FILE).write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
     ann_dir = processed / ANNOTATION_DIR

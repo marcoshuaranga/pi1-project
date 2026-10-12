@@ -70,7 +70,8 @@ def test_retrieve_uses_validated_kedb_search_limit():
 
     agent.retrieve("printer")
 
-    assert tickets.calls == [{"query_embeddings": [[1.0, 0.0]], "n_results": 10}]
+    # Sobre-pide vecinos (top_k * 40) porque se deduplica por texto de solución.
+    assert tickets.calls == [{"query_embeddings": [[1.0, 0.0]], "n_results": 200}]
     # search_validated_kedb always probes with the filter first, then retries
     # unfiltered once Chroma rejects it (FakeCollection.query raises on "where").
     assert len(kedb.calls) == 2
@@ -171,3 +172,56 @@ def test_retrieve_hides_total_vector_store_failure_as_empty_result():
     )
 
     assert agent.retrieve("printer") == []
+
+
+def _tickets_con(*items: tuple[str, float, str]) -> "FakeCollection":
+    """items: (id, distancia, solucion)."""
+
+    class _Tickets(FakeCollection):
+        def query(self, **kwargs):
+            self.calls.append(kwargs)
+            return {
+                "ids": [[i for i, _, _ in items]],
+                "distances": [[d for _, d, _ in items]],
+                "metadatas": [[{"titulo": f"T {i}", "solucion": s, "categoria": "C"} for i, _, s in items]],
+            }
+
+    return _Tickets()
+
+
+def test_retrieve_deduplica_por_texto_de_solucion_y_conserva_el_mejor_score():
+    tickets = _tickets_con(
+        ("t1", 0.10, "Reiniciar el servicio"),
+        ("t2", 0.12, "  reiniciar   EL servicio "),  # mismo texto normalizado -> duplicado de t1
+        ("t3", 0.20, "Reinstalar el driver"),
+    )
+    agent = _agent(tickets, FakeCollection(raises=ValueError("sin kedb")), top_k=5)
+
+    ids = [s.articulo_o_ticket_id for s in agent.retrieve("impresora")]
+
+    assert ids == ["t1", "t3"]
+
+
+def test_retrieve_no_deduplica_soluciones_vacias_entre_si():
+    tickets = _tickets_con(("t1", 0.1, ""), ("t2", 0.2, ""))
+    agent = _agent(tickets, FakeCollection(raises=ValueError("sin kedb")), top_k=5)
+
+    assert [s.articulo_o_ticket_id for s in agent.retrieve("x")] == ["t1", "t2"]
+
+
+def test_retrieve_excluir_ids_actua_antes_de_deduplicar():
+    # t1 (el propio ticket) tiene la misma solución que t2: al excluir a t1, t2 debe sobrevivir.
+    tickets = _tickets_con(("t1", 0.0, "Misma solución"), ("t2", 0.1, "Misma solución"), ("t3", 0.3, "Otra"))
+    agent = _agent(tickets, FakeCollection(raises=ValueError("sin kedb")), top_k=5)
+
+    ids = [s.articulo_o_ticket_id for s in agent.retrieve("x", excluir_ids={"t1"})]
+
+    assert ids == ["t2", "t3"]
+    assert agent.top_k == 5
+
+
+def test_retrieve_respeta_top_k_con_soluciones_distintas():
+    tickets = _tickets_con(*[(f"t{i}", 0.01 * i, f"solución {i}") for i in range(10)])
+    agent = _agent(tickets, FakeCollection(raises=ValueError("sin kedb")), top_k=3)
+
+    assert [s.articulo_o_ticket_id for s in agent.retrieve("x")] == ["t0", "t1", "t2"]

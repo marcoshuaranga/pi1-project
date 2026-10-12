@@ -244,13 +244,12 @@ def test_run_golden_evaluation_mide_recall_semantico_sin_contar_el_propio_ticket
     (tmp_path / "tickets_eval.json").write_text(json.dumps(tickets), encoding="utf-8")
 
     class FakeRag:
-        top_k = 5
-
-        def retrieve(self, texto, categoria=None):
-            assert self.top_k == 6  # pide uno extra para poder descartar el propio ticket
+        def retrieve(self, texto, categoria=None, excluir_ids=None):
             if texto == "ta":  # solo el propio ticket es de su categoría -> sin acierto semántico
-                return [sol("A", CAT_A), sol("x", CAT_B), sol("y", CAT_B)]
-            return [sol("B", CAT_B), sol("z", CAT_B), sol("w", CAT_A)]  # z comparte categoría
+                todas = [sol("A", CAT_A), sol("x", CAT_B), sol("y", CAT_B)]
+            else:
+                todas = [sol("B", CAT_B), sol("z", CAT_B), sol("w", CAT_A)]  # z comparte categoría
+            return [s for s in todas if s.articulo_o_ticket_id not in (excluir_ids or ())]
 
     class FakeClassifier:
         def classify(self, texto):
@@ -267,4 +266,3 @@ def test_run_golden_evaluation_mide_recall_semantico_sin_contar_el_propio_ticket
     assert result["recall_at_5"] == 1.0  # ambos aparecen en su propio top-5 (métrica por ID)
     assert result["recall_at_5_categoria"] == 0.5
     assert result["precision_at_5_categoria"] == 0.25  # A: 0/2, B: 1/2
-    assert ev.rag.top_k == 5  # se restaura
